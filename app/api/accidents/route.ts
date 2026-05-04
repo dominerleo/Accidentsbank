@@ -7,6 +7,7 @@ import {
   rowToAccident,
   type AccidentRow,
 } from "@/lib/supabase/accident";
+import { koreaDayEndIso, koreaDayStartIso } from "@/lib/dateRange";
 
 const DEFAULT_LIMIT = 1000;
 const MAX_LIMIT = 5000;
@@ -29,7 +30,7 @@ function parseListParam(v: string | null): string[] | null {
 /**
  * GET /api/accidents
  *   ?bbox=minLat,minLng,maxLat,maxLng  (선택, 없으면 전체)
- *   &category=traffic,crime
+ *   &category=incident,crime,news,etc,misc
  *   &source=user,news
  *   &from=2020-01-01&to=2025-12-31
  *   &limit=1000
@@ -40,8 +41,10 @@ export async function GET(req: Request) {
   const bboxRaw = searchParams.get("bbox");
   const category = parseListParam(searchParams.get("category"));
   const source = parseListParam(searchParams.get("source"));
-  const from = searchParams.get("from");
-  const to = searchParams.get("to");
+  const fromRaw = searchParams.get("from");
+  const toRaw = searchParams.get("to");
+  const from = fromRaw ? koreaDayStartIso(fromRaw) : null;
+  const to = toRaw ? koreaDayEndIso(toRaw) : null;
   const limit = Math.min(
     Math.max(Number(searchParams.get("limit")) || DEFAULT_LIMIT, 1),
     MAX_LIMIT
@@ -90,11 +93,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const accidents = (data as AccidentRow[]).map(rowToAccident);
+    const rows = (data ?? []) as AccidentRow[];
+    const visible = rows.filter(
+      (r) =>
+        typeof r.title === "string" &&
+        !r.title.toLowerCase().includes("테스트")
+    );
+    const accidents = visible.map(rowToAccident);
     return NextResponse.json({ accidents });
   }
 
-  // bbox 없는 경우: 일반 select
+  // bbox 없는 경우: 일반 select (제목에 "테스트" 포함 행은 응답 직전에 제외 — PostgREST not.ilike 와 % 조합 이슈 회피)
   let query = supabase
     .from("accidents")
     .select("*")
@@ -111,7 +120,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const accidents = (data as AccidentRow[]).map(rowToAccident);
+  const rows = (data ?? []) as AccidentRow[];
+  const visible = rows.filter(
+    (r) =>
+      typeof r.title === "string" &&
+      !r.title.toLowerCase().includes("테스트")
+  );
+  const accidents = visible.map(rowToAccident);
   return NextResponse.json({ accidents });
 }
 

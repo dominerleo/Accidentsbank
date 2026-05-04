@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { LogIn, LogOut, User as UserIcon, X, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocaleStore } from "@/hooks/useLocaleStore";
+import { ui } from "@/lib/i18n/ui";
 
 /**
  * 사이드바 헤더용 인증 버튼.
@@ -25,10 +27,12 @@ export default function AuthButton() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const locale = useLocaleStore((s) => s.locale);
+  const t = ui(locale);
 
   if (loading) {
     return (
-      <div className="text-xs text-slate-400">세션 확인 중…</div>
+      <div className="text-xs text-slate-400">{t.authSessionLoading}</div>
     );
   }
 
@@ -37,7 +41,7 @@ export default function AuthButton() {
       (user.user_metadata?.name as string | undefined) ??
       (user.user_metadata?.preferred_username as string | undefined) ??
       user.email ??
-      "사용자";
+      t.authUserFallback;
     return (
       <div className="flex items-center gap-2 text-xs">
         <UserIcon className="h-4 w-4 text-slate-500" />
@@ -54,10 +58,10 @@ export default function AuthButton() {
             }
           }}
           className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-slate-100"
-          aria-label="로그아웃"
+          aria-label={t.authLogoutAria}
         >
           <LogOut className="h-3.5 w-3.5" />
-          로그아웃
+          {t.authLogout}
         </button>
       </div>
     );
@@ -91,7 +95,7 @@ export default function AuthButton() {
         className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
       >
         <LogIn className="h-3.5 w-3.5" />
-        로그인
+        {t.authLogin}
       </button>
 
       {open && (
@@ -105,13 +109,13 @@ export default function AuthButton() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-bold text-slate-900">
-                사고은행 로그인
+                {t.authModalTitle}
               </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="rounded p-1 text-slate-500 hover:bg-slate-100"
-                aria-label="닫기"
+                aria-label={t.authCloseAria}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -130,12 +134,12 @@ export default function AuthButton() {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FEE500] px-4 py-2.5 text-sm font-semibold text-[#3C1E1E] transition-opacity hover:opacity-90"
             >
               <span aria-hidden>💬</span>
-              카카오로 시작
+              {t.authKakao}
             </button>
 
             <div className="my-4 flex items-center gap-2 text-xs text-slate-400">
               <div className="h-px flex-1 bg-slate-200" />
-              또는
+              {t.authOr}
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
@@ -145,7 +149,7 @@ export default function AuthButton() {
                 <input
                   type="email"
                   required
-                  placeholder="이메일"
+                  placeholder={t.authEmailPh}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 bg-transparent text-sm outline-none"
@@ -155,7 +159,7 @@ export default function AuthButton() {
                 type="password"
                 required
                 minLength={6}
-                placeholder="비밀번호 (6자 이상)"
+                placeholder={t.authPasswordPh}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand"
@@ -166,10 +170,10 @@ export default function AuthButton() {
                 className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:bg-slate-300"
               >
                 {submitting
-                  ? "처리 중…"
+                  ? t.authProcessing
                   : mode === "signin"
-                    ? "이메일 로그인"
-                    : "이메일 가입"}
+                    ? t.authEmailLogin
+                    : t.authEmailSignup}
               </button>
               <button
                 type="button"
@@ -180,8 +184,8 @@ export default function AuthButton() {
                 className="text-center text-xs text-slate-500 underline-offset-2 hover:underline"
               >
                 {mode === "signin"
-                  ? "처음이신가요? 가입하기"
-                  : "이미 계정이 있나요? 로그인"}
+                  ? t.authToggleSignup
+                  : t.authToggleLogin}
               </button>
             </form>
 

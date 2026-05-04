@@ -1,18 +1,25 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { AccidentSource, NormalizedAccident, SourceQuery } from "./types";
+import { parseOfficialAccidentsCsv } from "./officialCsv";
 
 /**
- * TAAS (도로교통공단 교통사고분석시스템) 어댑터.
+ * TAAS·공공 CSV 등 공식 좌표 포함 데이터 어댑터.
  *
- * Phase 1 마지막 단계에서 구현 예정.
- * 공공데이터포털에서 받은 CSV 를 파싱하여 NormalizedAccident 배열로 변환합니다.
+ * `SourceQuery.dataFilePath` 에 프로젝트 루트 기준 상대 또는 절대 CSV 경로를 넣고
+ * `scripts/import-batch.ts --source=official --csv=...` 로 적재합니다.
  */
 export class TaasSource implements AccidentSource {
   readonly type = "official";
-  readonly label = "공식 통계 (TAAS)";
+  readonly label = "공식 통계 (TAAS/CSV)";
   readonly enabled = true;
 
-  async fetch(_query: SourceQuery): Promise<NormalizedAccident[]> {
-    // TODO(Phase 1.4): scripts/import-taas.ts 에서 사용할 파서 구현
-    return [];
+  async fetch(query: SourceQuery): Promise<NormalizedAccident[]> {
+    const rel = query.dataFilePath?.trim();
+    if (!rel) return [];
+
+    const path = resolve(process.cwd(), rel);
+    const text = readFileSync(path, "utf-8");
+    return parseOfficialAccidentsCsv(text);
   }
 }

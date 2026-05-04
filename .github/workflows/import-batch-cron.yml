@@ -1,0 +1,50 @@
+# 주기 배치 적재 (선택). 리포지토리 Secrets 설정 후에만 동작합니다.
+# Secrets: SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL,
+#          NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, KAKAO_REST_API_KEY
+name: import-batch-cron
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      keyword:
+        description: "뉴스 검색 키워드"
+        required: true
+        default: "교통사고"
+      region:
+        description: "지역 힌트 (선택)"
+        required: false
+        default: "서울"
+
+jobs:
+  import-news:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Batch import (news)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          IMPORT_FORCE_NEWS: "1"
+          SEARCH_PROVIDER: naver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            KW='${{ github.event.inputs.keyword }}'
+            RG='${{ github.event.inputs.region }}'
+          else
+            KW="교통사고"
+            RG="서울"
+          fi
+          npm run import:batch -- --source=news --keyword="$KW" --region="$RG" --limit=20

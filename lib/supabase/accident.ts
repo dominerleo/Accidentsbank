@@ -1,10 +1,12 @@
-import type {
-  Accident,
-  AccidentAddress,
-  AccidentCategory,
-  AccidentInput,
-  AccidentSourceType,
-  LatLng,
+import {
+  type Accident,
+  type AccidentAddress,
+  type AccidentCategory,
+  type AccidentInput,
+  type AccidentPatch,
+  type AccidentSourceType,
+  type LatLng,
+  normalizeAccidentCategory,
 } from "@/types";
 
 /**
@@ -31,6 +33,7 @@ export interface AccidentRow {
   verified_by: string | null;
   tags: string[] | null;
   media_urls: string[] | null;
+  external_source_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -48,7 +51,7 @@ export function rowToAccident(row: AccidentRow): Accident {
   const location: LatLng = { lat: row.lat, lng: row.lng };
   return {
     id: row.id,
-    category: row.category as AccidentCategory,
+    category: normalizeAccidentCategory(row.category),
     title: row.title,
     description: row.description ?? undefined,
     occurredAt: row.occurred_at,
@@ -62,6 +65,7 @@ export function rowToAccident(row: AccidentRow): Accident {
     tags: row.tags ?? undefined,
     mediaUrls: row.media_urls ?? undefined,
     createdBy: row.created_by ?? undefined,
+    externalSourceId: row.external_source_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -75,6 +79,8 @@ export interface InsertOverrides {
   sourceType?: string;
   createdBy?: string | null;
   confidence?: number;
+  /** 배치 수집 upsert 용 (UNIQUE source_type + external_source_id) */
+  externalSourceId?: string | null;
 }
 
 export function inputToInsertRow(
@@ -99,6 +105,38 @@ export function inputToInsertRow(
     confidence: overrides.confidence ?? null,
     tags: input.tags ?? [],
     media_urls: input.mediaUrls ?? [],
+    external_source_id: overrides.externalSourceId ?? null,
     created_by: overrides.createdBy ?? null,
   };
+}
+
+/** PATCH 용 snake 컬럼만 담은 객체 */
+export function patchToAccidentRow(
+  patch: AccidentPatch,
+  opts: { allowSourceType?: boolean } = {}
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  if (patch.category !== undefined) row.category = patch.category;
+  if (patch.title !== undefined) row.title = patch.title;
+  if (patch.description !== undefined) row.description = patch.description;
+  if (patch.occurredAt !== undefined) {
+    row.occurred_at = new Date(patch.occurredAt).toISOString();
+  }
+  if (patch.location !== undefined) {
+    row.lat = patch.location.lat;
+    row.lng = patch.location.lng;
+  }
+  if (patch.address !== undefined) {
+    const a = patch.address;
+    if (a.roadAddress !== undefined) row.road_address = a.roadAddress ?? null;
+    if (a.jibunAddress !== undefined) row.jibun_address = a.jibunAddress ?? null;
+    if (a.region1 !== undefined) row.region_1 = a.region1 ?? null;
+    if (a.region2 !== undefined) row.region_2 = a.region2 ?? null;
+    if (a.region3 !== undefined) row.region_3 = a.region3 ?? null;
+  }
+  if (patch.newsUrl !== undefined) row.news_url = patch.newsUrl;
+  if (opts.allowSourceType && patch.sourceType !== undefined) {
+    row.source_type = patch.sourceType;
+  }
+  return row;
 }

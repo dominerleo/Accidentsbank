@@ -1,8 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import type { Accident, AccidentInput, LatLng } from "@/types";
+import type { Accident, AccidentInput, AccidentPatch, LatLng } from "@/types";
 import { DEFAULT_CENTER, DEFAULT_LEVEL } from "@/lib/kakao/config";
+import { useLocaleStore } from "@/hooks/useLocaleStore";
+import { ui } from "@/lib/i18n/ui";
 
 export interface AccidentFilter {
   bbox?: [number, number, number, number]; // [minLat, minLng, maxLat, maxLng]
@@ -13,6 +15,9 @@ export interface AccidentFilter {
   limit?: number;
 }
 
+/** Supabase 전체(뉴스·사고 등)를 지도에 올리기 위해 기본은 기간 제한 없음. API limit 은 상한 유지. */
+const DEFAULT_FETCH_LIMIT = 3000;
+
 interface MapState {
   center: LatLng;
   level: number;
@@ -22,11 +27,12 @@ interface MapState {
   isFormOpen: boolean;
   isKorea: boolean;
 
-  /** 데이터 로딩 상태 */
+  /** 목록/지도 조회에 쓰는 필터 */
+  accidentFilter: AccidentFilter;
+
   loading: boolean;
-  /** 등록 중 상태 */
   saving: boolean;
-  /** 마지막 에러 메시지 */
+  deleting: boolean;
   error: string | null;
 
   setCenter: (center: LatLng) => void;
@@ -35,18 +41,24 @@ interface MapState {
   selectAccident: (accident: Accident | null) => void;
   setAccidents: (list: Accident[]) => void;
   addAccident: (a: Accident) => void;
+  removeAccident: (id: string) => void;
   openForm: () => void;
   closeForm: () => void;
   setIsKorea: (v: boolean) => void;
 
-  /** 서버에서 사고 목록을 다시 가져와 store 갱신 */
-  loadAccidents: (filter?: AccidentFilter) => Promise<void>;
-  /** 사고를 서버에 등록하고 store 에 prepend */
+  setAccidentFilter: (patch: Partial<AccidentFilter>) => void;
+  loadAccidents: (override?: Partial<AccidentFilter>) => Promise<void>;
   createAccident: (input: AccidentInput) => Promise<Accident>;
+  updateAccident: (id: string, patch: AccidentPatch) => Promise<Accident>;
+  deleteAccident: (id: string, opts?: { devSecret?: string }) => Promise<void>;
+  /** 목록·마커 클릭 시 지도 중심·줌·상세를 한 번에 */
+  focusAccidentOnMap: (a: Accident) => void;
+  /** 지명 검색 등: 좌표로만 지도 이동 (사고 상세·핀 선택 해제) */
+  focusMapLocation: (location: LatLng, level?: number) => void;
+  purgeAllAccidents: () => Promise<number>;
 }
 
-function buildAccidentsUrl(filter?: AccidentFilter): string {
-  if (!filter) return "/api/accidents";
+function buildAccidentsUrl(filter: AccidentFilter): string {
   const params = new URLSearchParams();
   if (filter.bbox) params.set("bbox", filter.bbox.join(","));
   if (filter.category?.length) params.set("category", filter.category.join(","));
@@ -58,7 +70,7 @@ function buildAccidentsUrl(filter?: AccidentFilter): string {
   return qs ? `/api/accidents?${qs}` : "/api/accidents";
 }
 
-export const useMapStore = create<MapState>((set) => ({
+export const useMapStore = create<MapState>((set, get) => ({
   center: { ...DEFAULT_CENTER },
   level: DEFAULT_LEVEL,
   selectedPoint: null,
@@ -67,8 +79,11 @@ export const useMapStore = create<MapState>((set) => ({
   isFormOpen: false,
   isKorea: process.env.NEXT_PUBLIC_IS_KOREA !== "false",
 
+  accidentFilter: { limit: DEFAULT_FETCH_LIMIT },
+
   loading: false,
   saving: false,
+  deleting: false,
   error: null,
 
   setCenter: (center) => set({ center }),
@@ -77,20 +92,36 @@ export const useMapStore = create<MapState>((set) => ({
   selectAccident: (selectedAccident) => set({ selectedAccident }),
   setAccidents: (accidents) => set({ accidents }),
   addAccident: (a) => set((s) => ({ accidents: [a, ...s.accidents] })),
+  removeAccident: (id) =>
+    set((s) => ({
+      accidents: s.accidents.filter((x) => x.id !== id),
+      selectedAccident:
+        s.selectedAccident?.id === id ? null : s.selectedAccident,
+    })),
   openForm: () => set({ isFormOpen: true }),
   closeForm: () => set({ isFormOpen: false }),
   setIsKorea: (isKorea) => set({ isKorea }),
 
-  loadAccidents: async (filter) => {
+  setAccidentFilter: (patch) =>
+    set((s) => ({ accidentFilter: { ...s.accidentFilter, ...patch } })),
+
+  loadAccidents: async (override) => {
+    const filter = override
+      ? { ...get().accidentFilter, ...override }
+      : get().accidentFilter;
+    if (override) {
+      set({ accidentFilter: filter });
+    }
     set({ loading: true, error: null });
     try {
       const res = await fetch(buildAccidentsUrl(filter), { cache: "no-store" });
       if (!res.ok) {
         const msg = await res.text();
-        throw new Error(`사고 목록 조회 실패: ${res.status} ${msg}`);
+        const te = ui(useLocaleStore.getState().locale);
+        throw new Error(te.errorLoadList(res.status, msg));
       }
-      const json = (await res.json()) as { accidents: Accident[] };
-      set({ accidents: json.accidents, loading: false });
+      const json = (await res.json()) as { accidents?: Accident[] };
+      set({ accidents: json.accidents ?? [], loading: false });
     } catch (e) {
       set({
         loading: false,
@@ -109,19 +140,128 @@ export const useMapStore = create<MapState>((set) => ({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        const te = ui(useLocaleStore.getState().locale);
         throw new Error(
-          (body as { error?: string }).error ?? `등록 실패 (${res.status})`
+          (body as { error?: string }).error ?? te.errorCreateFallback(res.status)
         );
       }
       const created = (await res.json()) as Accident;
-      set((s) => ({
-        accidents: [created, ...s.accidents],
-        saving: false,
-      }));
+      set({ saving: false });
+      await get().loadAccidents();
       return created;
     } catch (e) {
       set({
         saving: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
+  },
+
+  updateAccident: async (id, patch) => {
+    set({ saving: true, error: null });
+    try {
+      const res = await fetch(`/api/accidents/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const te = ui(useLocaleStore.getState().locale);
+        throw new Error(
+          (body as { error?: string }).error ?? te.errorUpdateFallback(res.status)
+        );
+      }
+      const updated = body as Accident;
+      set({ saving: false });
+      await get().loadAccidents();
+      set((s) => ({
+        selectedAccident:
+          s.selectedAccident?.id === id ? updated : s.selectedAccident,
+      }));
+      return updated;
+    } catch (e) {
+      set({
+        saving: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
+  },
+
+  focusAccidentOnMap: (a) =>
+    set({
+      center: { lat: a.location.lat, lng: a.location.lng },
+      level: 4,
+      selectedAccident: a,
+      selectedPoint: null,
+    }),
+
+  focusMapLocation: (location, level = 4) =>
+    set({
+      center: { lat: location.lat, lng: location.lng },
+      level,
+      selectedAccident: null,
+      selectedPoint: null,
+    }),
+
+  purgeAllAccidents: async () => {
+    set({ deleting: true, error: null });
+    try {
+      const res = await fetch("/api/accidents/purge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const te = ui(useLocaleStore.getState().locale);
+        throw new Error(
+          (body as { error?: string }).error ?? te.errorPurgeFallback(res.status)
+        );
+      }
+      const deleted = (body as { deleted?: number }).deleted ?? 0;
+      set({
+        deleting: false,
+        selectedAccident: null,
+        accidents: [],
+      });
+      await get().loadAccidents();
+      return deleted;
+    } catch (e) {
+      set({
+        deleting: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
+  },
+
+  deleteAccident: async (id, opts) => {
+    set({ deleting: true, error: null });
+    try {
+      const headers: Record<string, string> = {};
+      if (opts?.devSecret) {
+        headers["x-admin-delete-secret"] = opts.devSecret;
+      }
+      const res = await fetch(`/api/accidents/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const te = ui(useLocaleStore.getState().locale);
+        throw new Error(
+          (body as { error?: string }).error ?? te.errorDeleteFallback(res.status)
+        );
+      }
+      get().removeAccident(id);
+      set({ deleting: false });
+      await get().loadAccidents();
+    } catch (e) {
+      set({
+        deleting: false,
         error: e instanceof Error ? e.message : String(e),
       });
       throw e;
