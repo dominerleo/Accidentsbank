@@ -91,24 +91,34 @@ export function normalizeSexOffenderAddressItem(
     "eupmyonNm",
   ]);
 
-  const ri = pickStr(raw, ["법정리명", "liNm", "legaldongLiNm", "LI_NM"]);
+  const ri = pickStr(raw, [
+    "법정리명",
+    "liNm",
+    "legaldongLiNm",
+    "LI_NM",
+    "stliNm",
+  ]);
 
   const mainLotNo = pickStr(raw, [
     "본번",
     "mnnm",
+    "mno",
     "mainLotNo",
     "bonbun",
     "MNNM",
     "mainLot",
+    "bmno",
   ]);
 
   const subLotNo = pickStr(raw, [
     "부번",
     "slno",
+    "sno",
     "subLotNo",
     "bubun",
     "SLNO",
     "subLot",
+    "bsno",
   ]);
 
   const stdg = pickStr(raw, [
@@ -234,6 +244,9 @@ export async function fetchGov24SexOffenderAddressesRaw(params: {
   url.searchParams.set("serviceKey", params.serviceKey);
   url.searchParams.set("pageNo", String(params.pageNo));
   url.searchParams.set("numOfRows", String(params.numOfRows));
+  // 정부24 OpenAPI V2 는 응답 형식 결정에 `type` 파라미터를 사용한다.
+  // (`resultType` 만 보내면 XML + INVALID_REQUEST_PARAMETER_ERROR 가 돌아온다.)
+  url.searchParams.set("type", "json");
   url.searchParams.set("resultType", "json");
 
   const res = await fetch(url.toString(), {

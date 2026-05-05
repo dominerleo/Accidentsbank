@@ -187,12 +187,14 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  if (parsed.headerResultCode && parsed.headerResultCode !== "00") {
+  // 정부24 OpenAPI: "0" 또는 "00" 이 정상 응답 코드.
+  const code = parsed.headerResultCode;
+  if (code && code !== "0" && code !== "00") {
     return NextResponse.json(
       {
         ok: false,
         error: "공공데이터 API 오류",
-        code: parsed.headerResultCode,
+        code,
         message: parsed.headerResultMsg || undefined,
       },
       { status: 502 }
