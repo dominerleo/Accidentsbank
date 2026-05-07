@@ -37,16 +37,38 @@ export default function AuthButton() {
   }
 
   if (user) {
-    const name =
-      (user.user_metadata?.name as string | undefined) ??
-      (user.user_metadata?.preferred_username as string | undefined) ??
-      user.email ??
-      t.authUserFallback;
+    // 닉네임/표시명 우선, 없으면 이메일의 @ 앞부분만 짧게.
+    const meta = user.user_metadata as Record<string, unknown> | undefined;
+    const candidates = [
+      meta?.name,
+      meta?.preferred_username,
+      meta?.user_name,
+      meta?.full_name,
+    ];
+    let displayName = "";
+    for (const c of candidates) {
+      if (typeof c === "string" && c.trim()) {
+        displayName = c.trim();
+        break;
+      }
+    }
+    if (!displayName && user.email) {
+      const at = user.email.indexOf("@");
+      displayName = at > 0 ? user.email.slice(0, at) : user.email;
+    }
+    if (!displayName) displayName = t.authUserFallback;
+
     return (
-      <div className="flex items-center gap-2 text-xs">
-        <UserIcon className="h-4 w-4 text-slate-500" />
-        <span className="max-w-[120px] truncate font-medium text-slate-700">
-          {name}
+      <div className="flex min-w-0 items-center gap-1.5 text-xs">
+        <UserIcon
+          className="h-4 w-4 shrink-0 text-slate-500"
+          aria-hidden
+        />
+        <span
+          title={displayName}
+          className="block max-w-[5rem] truncate font-medium text-slate-700 sm:max-w-[8rem]"
+        >
+          {displayName}
         </span>
         <button
           type="button"
@@ -57,11 +79,12 @@ export default function AuthButton() {
               setError(e instanceof Error ? e.message : String(e));
             }
           }}
-          className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-slate-100"
+          className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-slate-100"
           aria-label={t.authLogoutAria}
+          title={t.authLogoutAria}
         >
-          <LogOut className="h-3.5 w-3.5" />
-          {t.authLogout}
+          <LogOut className="h-3.5 w-3.5" aria-hidden />
+          <span className="hidden sm:inline">{t.authLogout}</span>
         </button>
       </div>
     );

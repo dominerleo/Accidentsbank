@@ -83,6 +83,20 @@ export default function GlobalMapView() {
       openForm();
     });
 
+    // 사용자가 지도를 옮기면 store 의 center 와 실제 지도 center 가 어긋나
+    // 같은 위치를 다시 검색해도 panTo 가 트리거되지 않는다. 결과를 store 에 반영.
+    map.on("moveend", () => {
+      const c = map.getCenter();
+      const cur = useMapStore.getState().center;
+      if (
+        Math.abs(cur.lat - c.lat) < 1e-7 &&
+        Math.abs(cur.lng - c.lng) < 1e-7
+      ) {
+        return;
+      }
+      useMapStore.getState().syncCenterFromMap({ lat: c.lat, lng: c.lng });
+    });
+
     return () => {
       map.remove();
       mapRef.current = null;

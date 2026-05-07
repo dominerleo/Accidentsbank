@@ -48,7 +48,7 @@ export default function HomePage() {
   }, [locale, setCenter, setLevel]);
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden">
+    <main className="relative h-[100dvh] w-screen overflow-hidden">
       <div className="absolute inset-0 z-0 min-h-0 min-w-0">
         {locale === "ko" ? <MapView /> : <GlobalMapView />}
         <LocaleTabs />

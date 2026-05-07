@@ -16,9 +16,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // 핀치-줌은 지도/접근성 위해 허용. (이전엔 maximumScale: 1, userScalable: false 였음)
+  maximumScale: 5,
+  userScalable: true,
   themeColor: "#0ea5e9",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

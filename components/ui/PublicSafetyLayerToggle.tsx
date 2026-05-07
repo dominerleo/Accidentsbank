@@ -24,7 +24,7 @@ export default function PublicSafetyLayerToggle() {
   const toggleVisible = usePublicSafetyStore((s) => s.toggleVisible);
 
   return (
-    <section className="border-b border-slate-100 px-5 py-3">
+    <section className="border-b border-slate-100 px-4 py-3 sm:px-5">
       <div className="flex items-start gap-3">
         <span
           className="mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-violet-100 text-violet-700"

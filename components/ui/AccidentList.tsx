@@ -87,7 +87,7 @@ export default function AccidentList() {
             <button
               type="button"
               onClick={() => focusAccidentOnMap(a)}
-              className="flex w-full flex-col gap-1 px-5 py-3 text-left transition-colors hover:bg-slate-50"
+              className="flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:px-5"
             >
               <div className="flex items-center gap-2">
                 <span

@@ -18,6 +18,7 @@ export default function MapView() {
   const selectAccident = useMapStore((s) => s.selectAccident);
   const loadAccidents = useMapStore((s) => s.loadAccidents);
   const setLevel = useMapStore((s) => s.setLevel);
+  const syncCenterFromMap = useMapStore((s) => s.syncCenterFromMap);
 
   // 공공안전(성범죄자 공개·고지 주소) 레이어 — accidents 와 분리된 별도 store.
   const psVisible = usePublicSafetyStore((s) => s.visible);
@@ -33,6 +34,19 @@ export default function MapView() {
   const handleZoomChanged = useCallback(
     (map: kakao.maps.Map) => setLevel(map.getLevel()),
     [setLevel]
+  );
+
+  /**
+   * 사용자가 마우스/터치로 지도를 끌어 옮기면 store 의 center 와 실제 지도 center 가 어긋난다.
+   * 이 상태에서 같은 위치를 다시 검색하면 store center 가 동일해 카카오 SDK 의 panTo 가 트리거되지 않는다.
+   * 사용자 입력 결과를 store 에 반영해 두면 다음 검색이 항상 정확히 동작한다.
+   */
+  const handleCenterChanged = useCallback(
+    (map: kakao.maps.Map) => {
+      const c = map.getCenter();
+      syncCenterFromMap({ lat: c.getLat(), lng: c.getLng() });
+    },
+    [syncCenterFromMap]
   );
 
   useEffect(() => {
@@ -61,6 +75,8 @@ export default function MapView() {
           isPanto
           style={{ width: "100%", height: "100%" }}
           onZoomChanged={handleZoomChanged}
+          onCenterChanged={handleCenterChanged}
+          onDragEnd={handleCenterChanged}
           onClick={async (_map, mouseEvent) => {
             // 공공안전 팝업이 떠 있으면 지도 클릭은 팝업 닫기에만 사용.
             if (psSelectedId) {
