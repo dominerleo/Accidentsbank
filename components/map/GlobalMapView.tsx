@@ -81,11 +81,19 @@ export default function GlobalMapView() {
       [c.lat, c.lng],
       resolveLeafletZoom(lv, Boolean(useMapStore.getState().selectedAccident))
     );
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map);
+    // 세계 지도는 각 나라 모국어가 아닌 영어 라벨로 통일.
+    // ESRI World Street Map: 무료 + API 키 불필요 + 국가/도시/주요 지명 모두 영문 표기.
+    // (OpenStreetMap 표준 타일은 `name` 태그를 그대로 써서 한자/키릴/한글 등 현지 표기로 나옴)
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution:
+          'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+        // ESRI 측에서 가끔 일부 타일이 비어 올 때를 대비.
+        crossOrigin: true,
+      }
+    ).addTo(map);
     L.control
       .scale({ imperial: false, metric: true, maxWidth: 140, position: "bottomleft" })
       .addTo(map);
