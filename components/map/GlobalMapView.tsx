@@ -11,9 +11,18 @@ import L from "leaflet";
 import { useMapStore } from "@/hooks/useMapStore";
 import { getAccidentCategoryMeta } from "@/types";
 
-function levelToLeafletZoom(level: number, detail: boolean): number {
+/**
+ * 영어/세계 지도 모드에서는 store 의 `level` 을 Leaflet 의 zoom 으로 그대로 해석한다.
+ * (한국어/Kakao 모드의 1~14 level 체계와는 다른 의미로 쓰임.)
+ *
+ * - detail=true 인 경우(사고 상세 선택 등) 거리뷰 수준으로 강제 확대
+ * - 그 외에는 Leaflet 줌 한도(2~18)에서 클램프
+ * - zoomSnap=0.25 이므로 분수 zoom(예: 5.25) 을 그대로 허용해야 부드러운 휠 줌이 유지됨
+ */
+function resolveLeafletZoom(level: number, detail: boolean): number {
   if (detail) return 13;
-  return Math.min(16, Math.max(2, Math.round(20 - level * 0.85)));
+  const z = Number.isFinite(level) ? Number(level) : 5;
+  return Math.min(18, Math.max(2, z));
 }
 
 export default function GlobalMapView() {
@@ -48,22 +57,29 @@ export default function GlobalMapView() {
     const map = L.map(el, {
       zoomControl: true,
       scrollWheelZoom: true,
-      wheelPxPerZoomLevel: 90,
+      // 휠 한 번에 1 단계가 아니라 0.25 단계씩 이동시켜 카카오맵처럼 부드럽게.
+      wheelPxPerZoomLevel: 60,
+      wheelDebounceTime: 30,
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
       doubleClickZoom: true,
       boxZoom: true,
       keyboard: true,
       dragging: true,
       inertia: true,
-      inertiaDeceleration: 2800,
-      inertiaMaxSpeed: 1200,
-      easeLinearity: 0.22,
+      inertiaDeceleration: 2400,
+      inertiaMaxSpeed: 1800,
+      easeLinearity: 0.18,
       zoomAnimation: true,
       fadeAnimation: true,
       markerZoomAnimation: true,
       bounceAtZoomLimits: false,
+      worldCopyJump: true,
+      minZoom: 2,
+      maxZoom: 18,
     }).setView(
       [c.lat, c.lng],
-      levelToLeafletZoom(lv, Boolean(useMapStore.getState().selectedAccident))
+      resolveLeafletZoom(lv, Boolean(useMapStore.getState().selectedAccident))
     );
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
@@ -95,6 +111,15 @@ export default function GlobalMapView() {
         return;
       }
       useMapStore.getState().syncCenterFromMap({ lat: c.lat, lng: c.lng });
+    });
+
+    // 사용자가 휠/버튼으로 줌하면 store 의 level 도 따라가야 한다.
+    // 그렇지 않으면 다른 액션(중심 이동 등)으로 setView 가 다시 호출될 때 옛 zoom 으로 되돌아간다.
+    map.on("zoomend", () => {
+      const z = map.getZoom();
+      const cur = useMapStore.getState().level;
+      if (Math.abs(cur - z) < 0.01) return;
+      useMapStore.getState().setLevel(z);
     });
 
     return () => {
@@ -133,21 +158,23 @@ export default function GlobalMapView() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const z = levelToLeafletZoom(level, Boolean(selectedAccident));
+    const z = resolveLeafletZoom(level, Boolean(selectedAccident));
     const sid = selectedAccident?.id;
     const p = prevViewRef.current;
     if (
       p &&
-      p.lat === center.lat &&
-      p.lng === center.lng &&
-      p.z === z &&
+      Math.abs(p.lat - center.lat) < 1e-7 &&
+      Math.abs(p.lng - center.lng) < 1e-7 &&
+      Math.abs(p.z - z) < 0.01 &&
       p.sel === sid
     ) {
       return;
     }
     prevViewRef.current = { lat: center.lat, lng: center.lng, z, sel: sid };
+    // 사고 상세 선택 시에만 부드러운 flyTo 애니메이션. 그 외(휠 줌 결과 sync 등)는 즉시.
     const shouldAnimate =
-      sid != null && (!p || p.sel !== sid || p.z !== z || p.lat !== center.lat || p.lng !== center.lng);
+      sid != null &&
+      (!p || p.sel !== sid || p.z !== z || p.lat !== center.lat || p.lng !== center.lng);
     map.setView([center.lat, center.lng], z, {
       animate: shouldAnimate,
       duration: shouldAnimate ? 0.28 : 0,

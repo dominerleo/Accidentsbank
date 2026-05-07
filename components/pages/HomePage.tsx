@@ -31,16 +31,20 @@ export default function HomePage() {
     if (prevLocale.current === locale) return;
     const prev = prevLocale.current;
     prevLocale.current = locale;
+    // 영어/세계 지도 초기 화면: 한국·중국·일본이 한 화면에 들어오는 동북아 중심 + Leaflet zoom 5
+    // (Leaflet 모드에서는 store 의 level 이 Leaflet zoom 으로 그대로 해석됨 — GlobalMapView 참고)
+    const eastAsiaCenter = { lat: 36, lng: 125 };
+    const eastAsiaZoom = 5;
     if (prev === null) {
       if (locale === "en") {
-        setCenter({ lat: 20, lng: 10 });
-        setLevel(3);
+        setCenter(eastAsiaCenter);
+        setLevel(eastAsiaZoom);
       }
       return;
     }
     if (locale === "en") {
-      setCenter({ lat: 20, lng: 10 });
-      setLevel(3);
+      setCenter(eastAsiaCenter);
+      setLevel(eastAsiaZoom);
     } else {
       setCenter({ ...DEFAULT_CENTER });
       setLevel(DEFAULT_LEVEL);
