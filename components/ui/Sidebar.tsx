@@ -14,6 +14,7 @@ import AccidentCategoryFilter from "./AccidentCategoryFilter";
 import DataSourceStatus from "./DataSourceStatus";
 import PlaceSearchBar from "./PlaceSearchBar";
 import PublicSafetyLayerToggle from "./PublicSafetyLayerToggle";
+import TsunamiEvacuationLayerToggle from "./TsunamiEvacuationLayerToggle";
 
 /**
  * 사이드바 — 데스크탑(`md:` 이상)에서는 항상 노출.
@@ -112,6 +113,8 @@ export default function Sidebar() {
         <AccidentCategoryFilter />
 
         <PublicSafetyLayerToggle />
+
+        <TsunamiEvacuationLayerToggle />
 
         <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2 sm:px-5">
           <DataSourceStatus />

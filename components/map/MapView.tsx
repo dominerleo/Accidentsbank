@@ -6,8 +6,11 @@ import KakaoMapLoader from "./KakaoMapLoader";
 import AccidentMarker from "./AccidentMarker";
 import PublicSafetyMarker from "./PublicSafetyMarker";
 import PublicSafetyPopup from "./PublicSafetyPopup";
+import TsunamiEvacuationMarker from "./TsunamiEvacuationMarker";
+import TsunamiEvacuationPopup from "./TsunamiEvacuationPopup";
 import { useMapStore } from "@/hooks/useMapStore";
 import { usePublicSafetyStore } from "@/hooks/usePublicSafetyStore";
+import { useTsunamiEvacuationStore } from "@/hooks/useTsunamiEvacuationStore";
 
 export default function MapView() {
   const center = useMapStore((s) => s.center);
@@ -28,6 +31,16 @@ export default function MapView() {
   const psItems = useMemo(
     () => (Array.isArray(psItemsRaw) ? psItemsRaw : []),
     [psItemsRaw]
+  );
+
+  // 지진해일 대피지구 레이어 (기타 카테고리 — 행정안전부 NDMS).
+  const tsVisible = useTsunamiEvacuationStore((s) => s.visible);
+  const tsItemsRaw = useTsunamiEvacuationStore((s) => s.items);
+  const tsSelectedId = useTsunamiEvacuationStore((s) => s.selectedId);
+  const tsSetSelectedId = useTsunamiEvacuationStore((s) => s.setSelectedId);
+  const tsItems = useMemo(
+    () => (Array.isArray(tsItemsRaw) ? tsItemsRaw : []),
+    [tsItemsRaw]
   );
 
   /** Map 내부 effect 가 [callback] 을 의존하므로 참조 고정 — 매 렌더마다 바뀌면 onCreate 가 반복 호출되어 무한 루프 */
@@ -58,10 +71,20 @@ export default function MapView() {
     if (!psVisible && psSelectedId) psSetSelectedId(null);
   }, [psVisible, psSelectedId, psSetSelectedId]);
 
+  useEffect(() => {
+    if (!tsVisible && tsSelectedId) tsSetSelectedId(null);
+  }, [tsVisible, tsSelectedId, tsSetSelectedId]);
+
   const psSelectedItem = useMemo(
     () =>
       psSelectedId ? psItems.find((it) => it.id === psSelectedId) ?? null : null,
     [psItems, psSelectedId]
+  );
+
+  const tsSelectedItem = useMemo(
+    () =>
+      tsSelectedId ? tsItems.find((it) => it.id === tsSelectedId) ?? null : null,
+    [tsItems, tsSelectedId]
   );
 
   // TODO: 마커 수가 많아지면 클러스터링 도입 (kakao.maps.MarkerClusterer 또는 직접 그리드 군집화).
@@ -77,9 +100,13 @@ export default function MapView() {
           onZoomChanged={handleZoomChanged}
           onDragEnd={handleDragEnd}
           onClick={async (_map, mouseEvent) => {
-            // 공공안전 팝업이 떠 있으면 지도 클릭은 팝업 닫기에만 사용.
+            // 공공안전·대피지구 팝업이 떠 있으면 지도 클릭은 팝업 닫기에만 사용.
             if (psSelectedId) {
               psSetSelectedId(null);
+              return;
+            }
+            if (tsSelectedId) {
+              tsSetSelectedId(null);
               return;
             }
             const latlng = mouseEvent.latLng;
@@ -114,6 +141,25 @@ export default function MapView() {
             <PublicSafetyPopup
               item={psSelectedItem}
               onClose={() => psSetSelectedId(null)}
+            />
+          )}
+
+          {tsVisible &&
+            tsItems.map((it) =>
+              it ? (
+                <TsunamiEvacuationMarker
+                  key={it.id}
+                  item={it}
+                  selected={it.id === tsSelectedId}
+                  onClick={() => tsSetSelectedId(it.id)}
+                />
+              ) : null
+            )}
+
+          {tsVisible && tsSelectedItem && (
+            <TsunamiEvacuationPopup
+              item={tsSelectedItem}
+              onClose={() => tsSetSelectedId(null)}
             />
           )}
         </Map>

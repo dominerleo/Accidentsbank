@@ -150,6 +150,12 @@ const ko = {
   psLoading: "공공안전 데이터 불러오는 중…",
   psError: "공공안전 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
   psLoadedCount: (n: number) => `${n}건의 주소를 표시 중입니다.`,
+  tsunamiLayerTitle: "지진해일 대피지구",
+  tsunamiLayerSubtitle: "행정안전부 NDMS 공개정보",
+  tsunamiPopupCategoryLabel: "기타 · 대피",
+  tsunamiLoading: "지진해일 대피지구 불러오는 중…",
+  tsunamiError: "대피지구 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+  tsunamiLoadedCount: (n: number) => `${n}곳의 대피지구를 표시 중입니다.`,
 } as const;
 
 const en = {
@@ -299,6 +305,13 @@ const en = {
   psLoading: "Loading public safety data…",
   psError: "Could not load public safety data. Please try again later.",
   psLoadedCount: (n: number) => `Showing ${n} address${n === 1 ? "" : "es"}.`,
+  tsunamiLayerTitle: "Tsunami Evacuation Sites",
+  tsunamiLayerSubtitle: "MOIS NDMS public dataset",
+  tsunamiPopupCategoryLabel: "Misc · Evacuation",
+  tsunamiLoading: "Loading tsunami evacuation sites…",
+  tsunamiError: "Could not load evacuation site data. Please try again later.",
+  tsunamiLoadedCount: (n: number) =>
+    `Showing ${n} evacuation site${n === 1 ? "" : "s"}.`,
 } as const;
 
 export type UiStrings = typeof ko;
