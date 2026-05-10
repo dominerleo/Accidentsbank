@@ -49,7 +49,8 @@ export default function TsunamiEvacuationPopup({ item, onClose }: Props) {
       zIndex={10}
     >
       <div
-        className="min-w-[240px] max-w-[300px] rounded-lg border border-emerald-200 bg-white p-3 text-sm shadow-xl"
+        className="rounded-lg border border-emerald-200 bg-white p-3 text-sm shadow-xl"
+        style={{ width: 280, maxWidth: "min(85vw, 320px)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-2 flex items-start justify-between gap-2">
@@ -72,7 +73,10 @@ export default function TsunamiEvacuationPopup({ item, onClose }: Props) {
             <dt className="text-[10px] uppercase tracking-wide text-slate-400">
               {t.psPopupLocation}
             </dt>
-            <dd className="text-sm font-medium text-slate-900">
+            <dd
+              className="whitespace-normal break-words text-sm font-medium text-slate-900"
+              style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+            >
               {displayAddress}
             </dd>
           </div>
@@ -81,7 +85,12 @@ export default function TsunamiEvacuationPopup({ item, onClose }: Props) {
             <dt className="text-[10px] uppercase tracking-wide text-slate-400">
               {t.psPopupSource}
             </dt>
-            <dd className="text-xs text-slate-700">{sourceName}</dd>
+            <dd
+              className="whitespace-normal break-words text-xs text-slate-700"
+              style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+            >
+              {sourceName}
+            </dd>
           </div>
 
           <div>
