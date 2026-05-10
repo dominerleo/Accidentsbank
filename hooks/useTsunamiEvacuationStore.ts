@@ -59,8 +59,10 @@ export const useTsunamiEvacuationStore = create<TsunamiEvacuationState>(
     setVisible: (visible) => {
       const wasVisible = get().visible;
       set({ visible });
+      // 레이어를 다시 켤 때마다 최신 캐시를 가져온다.
+      // 첫 로드 시 DB 가 비어 있었던 경우(loaded=true, items=[]) 나 배포 직후 데이터 반영을 놓치지 않도록 force.
       if (visible && !wasVisible) {
-        void get().loadCache();
+        void get().loadCache({ force: true });
       }
     },
 
