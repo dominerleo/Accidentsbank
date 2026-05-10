@@ -1,4 +1,29 @@
-# 지진해일 대피지구 데이터 셋업
+# 지진해일 대피지구 · 지진 옥외대피소 데이터 셋업
+
+지진해일 대피지구·지진 옥외대피소(NDMS / 행정안전부) 데이터를 지도 **재난 대피시설** 레이어에 표시하기 위한 절차.
+
+> **safetydata.go.kr API** 는 신청 시 **사용자 IP** 를 묶는 경우가 있습니다. Vercel 배포(서버리스)는 출발 IP 가 고정이 아니므로, `*.*.*.*` 전체 허용이 아니면 **서버에서의 자동 동기화**가 403/거절될 수 있습니다. 그때는 로컬 PC에서 `npx tsx scripts/sync-...` 를 실행하거나, IP 를 전체 허용으로 변경 신청하세요. (키는 채팅·스크린샷에 노출하지 말고 **재발급** 권장)
+
+---
+
+## 지진 옥외대피소 — safetydata.go.kr (DSSP-IF-00103)
+
+1. [safetydata.go.kr](https://www.safetydata.go.kr) 에서 **지진옥외대피소_포인트** API 활용 승인
+2. `.env.local` / Vercel 에 동일하게 `SAFETYDATA_API_KEY` 등록 (서비스키)
+3. (선택) 엔드포인트가 기본과 다르면 `SAFETYDATA_EARTHQUAKE_SHELTER_API_URL` 지정. 기본값: `https://www.safetydata.go.kr/V2/api/DSSP-IF-00103`
+4. 동기화 (로컬 또는 관리자 API):
+
+```bash
+npx tsx scripts/sync-earthquake-outdoor-shelter-api.ts --pages=10 --numOfRows=200
+```
+
+또는 `POST /api/admin/disasters/earthquake-outdoor-shelter/sync` (관리자 권한, 본문 `{ "pageNo": 1, "numOfRows": 200 }`).
+
+캐시 테이블 `public_safety_address_cache` 에 `category = earthquake_outdoor_shelter` 로 저장되며, 지도에서는 **재난 대피시설** 토글에서 함께 표시됩니다.
+
+---
+
+# 지진해일 대피지구 데이터 셋업 (기존)
 
 지진해일 대피지구(NDMS / 행정안전부) 데이터를 지도에 표시하기 위한 절차.
 
