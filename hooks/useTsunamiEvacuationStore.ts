@@ -37,10 +37,14 @@ interface TsunamiEvacuationState {
   reset: () => void;
 }
 
+const DISASTER_EVACUATION_CATEGORIES = [
+  "tsunami_evacuation_site",
+  "earthquake_outdoor_shelter",
+].join(",");
+
 /**
- * 지진해일 대피지구 레이어 store.
- * 공공안전(성범죄자) store 와 동일한 패턴이지만 category 만 다름.
- * 캐시 API: GET /api/public-safety/address-cache?category=tsunami_evacuation_site
+ * 재난 대피시설(지진해일 + 지진 옥외대피소) 레이어 store.
+ * 공공안전(성범죄자) store 와 동일한 패턴이며 다중 category 를 묶어서 읽는다.
  */
 export const useTsunamiEvacuationStore = create<TsunamiEvacuationState>(
   (set, get) => ({
@@ -55,8 +59,10 @@ export const useTsunamiEvacuationStore = create<TsunamiEvacuationState>(
     setVisible: (visible) => {
       const wasVisible = get().visible;
       set({ visible });
+      // 레이어를 다시 켤 때마다 최신 캐시를 가져온다.
+      // 첫 로드 시 DB 가 비어 있었던 경우(loaded=true, items=[]) 나 배포 직후 데이터 반영을 놓치지 않도록 force.
       if (visible && !wasVisible) {
-        void get().loadCache();
+        void get().loadCache({ force: true });
       }
     },
 
@@ -75,7 +81,7 @@ export const useTsunamiEvacuationStore = create<TsunamiEvacuationState>(
       set({ loading: true, error: null });
       try {
         const res = await fetch(
-          "/api/public-safety/address-cache?category=tsunami_evacuation_site&limit=5000",
+          `/api/public-safety/address-cache?category=${encodeURIComponent(DISASTER_EVACUATION_CATEGORIES)}&limit=5000`,
           { cache: "no-store" }
         );
         if (!res.ok) {

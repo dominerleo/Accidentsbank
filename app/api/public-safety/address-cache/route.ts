@@ -66,7 +66,8 @@ type RawRow = {
  *
  * Query params (모두 선택):
  *   - bbox=minLat,minLng,maxLat,maxLng
- *   - category=sex_offender_notice_address (기본값과 동일)
+ *   - category=sex_offender_notice_address
+ *     또는 category=tsunami_evacuation_site,earthquake_outdoor_shelter (콤마 구분 다중)
  *   - limit=1..5000  (기본 1000)
  *
  * 실패 시에도 지도 전체가 깨지지 않도록 200 + { ok:false, items:[] } 또는 4xx/5xx 를
@@ -80,7 +81,11 @@ export async function GET(req: Request): Promise<NextResponse> {
     DEFAULT_LIMIT,
     MAX_LIMIT
   );
-  const category = searchParams.get("category")?.trim() || DEFAULT_CATEGORY;
+  const categoryRaw = searchParams.get("category")?.trim() || DEFAULT_CATEGORY;
+  const categories = categoryRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const bboxRaw = searchParams.get("bbox");
   let bbox: [number, number, number, number] | null = null;
@@ -110,11 +115,16 @@ export async function GET(req: Request): Promise<NextResponse> {
     .select(
       "id, category, source_type, source_name, display_address, sido, sigungu, eupmyeondong, ri, latitude, longitude, fetched_at"
     )
-    .eq("category", category)
     .not("latitude", "is", null)
     .not("longitude", "is", null)
     .order("fetched_at", { ascending: false })
     .limit(limit);
+
+  if (categories.length <= 1) {
+    query = query.eq("category", categories[0] ?? DEFAULT_CATEGORY);
+  } else {
+    query = query.in("category", categories);
+  }
 
   if (bbox) {
     const [minLat, minLng, maxLat, maxLng] = bbox;
@@ -155,7 +165,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     ok: true,
     items,
     count: items.length,
-    category,
+    category: categoryRaw,
+    categories,
     limit,
     bbox,
   });

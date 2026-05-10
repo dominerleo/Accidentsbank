@@ -1,14 +1,12 @@
 "use client";
 
-// TODO(public-safety): 영어/Leaflet 모드용 공공안전(성범죄자 공개·고지 주소) 레이어 미구현.
-//   - 카카오 맵(`MapView.tsx`) 에 동일 데이터(`/api/public-safety/address-cache`)를
-//     사용하는 마커/팝업/토글이 이미 추가되어 있으니 동일한 store(`usePublicSafetyStore`)를
-//     재사용해 Leaflet `LayerGroup` 으로 옮겨오면 된다.
-//   - 마커 수가 많아질 가능성이 있으므로 도입 시 `leaflet.markercluster` 등의 클러스터링을 함께 검토.
+// TODO(public-safety): 영어/Leaflet 모드용 공공안전(성범죄자 공개·고지 주소) 레이어는 아직 미구현.
+// 재난 대피시설(`useTsunamiEvacuationStore`)은 Leaflet 에 초록 원마커로 표시함.
 
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { useMapStore } from "@/hooks/useMapStore";
+import { useTsunamiEvacuationStore } from "@/hooks/useTsunamiEvacuationStore";
 import { getAccidentCategoryMeta } from "@/types";
 
 /**
@@ -25,10 +23,19 @@ function resolveLeafletZoom(level: number, detail: boolean): number {
   return Math.min(18, Math.max(2, z));
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export default function GlobalMapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const disasterLayerRef = useRef<L.LayerGroup | null>(null);
   const prevViewRef = useRef<{
     lat: number;
     lng: number;
@@ -45,6 +52,10 @@ export default function GlobalMapView() {
   const openForm = useMapStore((s) => s.openForm);
   const setCenter = useMapStore((s) => s.setCenter);
   const loadAccidents = useMapStore((s) => s.loadAccidents);
+
+  const tsVisible = useTsunamiEvacuationStore((s) => s.visible);
+  const tsItems = useTsunamiEvacuationStore((s) => s.items);
+  const tsSetSelectedId = useTsunamiEvacuationStore((s) => s.setSelectedId);
 
   useEffect(() => {
     void loadAccidents();
@@ -99,6 +110,7 @@ export default function GlobalMapView() {
       .addTo(map);
     mapRef.current = map;
     markersLayerRef.current = L.layerGroup().addTo(map);
+    disasterLayerRef.current = L.layerGroup().addTo(map);
 
     map.on("click", (e) => {
       const p = { lat: e.latlng.lat, lng: e.latlng.lng };
@@ -134,6 +146,7 @@ export default function GlobalMapView() {
       map.remove();
       mapRef.current = null;
       markersLayerRef.current = null;
+      disasterLayerRef.current = null;
     };
   }, [openForm, selectPoint, setCenter]);
 
@@ -162,6 +175,39 @@ export default function GlobalMapView() {
       mk.addTo(layer);
     }
   }, [accidents, selectAccident]);
+
+  /** 재난 대피시설(지진해일·옥외대피소) — 카카오 맵과 동일 store, Leaflet 에만 마커 미구현돼 있던 공백 보완 */
+  useEffect(() => {
+    const layer = disasterLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!tsVisible) return;
+    for (const it of tsItems) {
+      if (!it) continue;
+      const lat = Number(it.latitude);
+      const lng = Number(it.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const mk = L.circleMarker([lat, lng], {
+        radius: 7,
+        weight: 2,
+        color: "#fff",
+        fillColor: "#10b981",
+        fillOpacity: 0.92,
+      });
+      const title =
+        it.displayAddress?.trim() ||
+        [it.sido, it.sigungu, it.eupmyeondong].filter(Boolean).join(" ") ||
+        "대피시설";
+      mk.bindPopup(
+        `<div style="font-size:12px;line-height:1.35;max-width:220px"><strong style="color:#047857">${escapeHtml(it.sourceName ?? "")}</strong><br/>${escapeHtml(title)}</div>`
+      );
+      mk.on("click", (ev) => {
+        L.DomEvent.stopPropagation(ev);
+        tsSetSelectedId(it.id);
+      });
+      mk.addTo(layer);
+    }
+  }, [tsVisible, tsItems, tsSetSelectedId]);
 
   useEffect(() => {
     const map = mapRef.current;
