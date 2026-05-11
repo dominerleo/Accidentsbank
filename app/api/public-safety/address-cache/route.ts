@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 1000;
 const MAX_LIMIT = 5000;
+const PAGE_SIZE = 1000;
 const DEFAULT_CATEGORY = "sex_offender_notice_address";
 
 function parsePositiveInt(
@@ -110,42 +111,52 @@ export async function GET(req: Request): Promise<NextResponse> {
     );
   }
 
-  let query = supabase
-    .from("public_safety_address_cache")
-    .select(
-      "id, category, source_type, source_name, display_address, sido, sigungu, eupmyeondong, ri, latitude, longitude, fetched_at"
-    )
-    .not("latitude", "is", null)
-    .not("longitude", "is", null)
-    .order("fetched_at", { ascending: false })
-    .limit(limit);
+  const rows: RawRow[] = [];
+  let offset = 0;
 
-  if (categories.length <= 1) {
-    query = query.eq("category", categories[0] ?? DEFAULT_CATEGORY);
-  } else {
-    query = query.in("category", categories);
+  while (rows.length < limit) {
+    const pageLimit = Math.min(PAGE_SIZE, limit - rows.length);
+    let query = supabase
+      .from("public_safety_address_cache")
+      .select(
+        "id, category, source_type, source_name, display_address, sido, sigungu, eupmyeondong, ri, latitude, longitude, fetched_at"
+      )
+      .not("latitude", "is", null)
+      .not("longitude", "is", null)
+      .order("fetched_at", { ascending: false })
+      .range(offset, offset + pageLimit - 1);
+
+    if (categories.length <= 1) {
+      query = query.eq("category", categories[0] ?? DEFAULT_CATEGORY);
+    } else {
+      query = query.in("category", categories);
+    }
+
+    if (bbox) {
+      const [minLat, minLng, maxLat, maxLng] = bbox;
+      query = query
+        .gte("latitude", minLat)
+        .lte("latitude", maxLat)
+        .gte("longitude", minLng)
+        .lte("longitude", maxLng);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[public-safety/address-cache] query failed:", error.message);
+      return NextResponse.json(
+        { ok: false, error: error.message, items: [] },
+        { status: 500 }
+      );
+    }
+
+    const pageRows = (data ?? []) as RawRow[];
+    rows.push(...pageRows);
+    if (pageRows.length < pageLimit) break;
+    offset += pageLimit;
   }
 
-  if (bbox) {
-    const [minLat, minLng, maxLat, maxLng] = bbox;
-    query = query
-      .gte("latitude", minLat)
-      .lte("latitude", maxLat)
-      .gte("longitude", minLng)
-      .lte("longitude", maxLng);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("[public-safety/address-cache] query failed:", error.message);
-    return NextResponse.json(
-      { ok: false, error: error.message, items: [] },
-      { status: 500 }
-    );
-  }
-
-  const rows = (data ?? []) as RawRow[];
   const items: PublicSafetyAddressItem[] = rows.map((r) => ({
     id: r.id,
     category: r.category,
