@@ -6,9 +6,9 @@
  *   - SAFETYDATA_EARTHQUAKE_SHELTER_API_URL   : 엔드포인트 전체 URL (선택)
  *       기본: https://www.safetydata.go.kr/V2/api/DSSP-IF-00103
  *
- * 좌표: 응답에 WGS84 위경도가 있으면(한반도 범위)만 사용한다.
- * XMAP_CRTS/YMAP_CRTS 등 투영좌표는 잘못 위경도로 해석되면 지도가 깨지므로 여기서는 무시하고
- * 주소 문자열로 카카오 지오코딩한다.
+ * 좌표: 응답에 WGS84 위경도가 있으면 우선 사용한다.
+ * DSSP-IF-00103 의 XMAP_CRTS/YMAP_CRTS 및 GEOM 은 Web Mercator(EPSG:3857)
+ * 좌표로 내려오므로 WGS84 위경도로 변환한 뒤 한반도 범위일 때만 사용한다.
  */
 
 import {
@@ -22,6 +22,7 @@ const DEFAULT_API_URL =
   "https://www.safetydata.go.kr/V2/api/DSSP-IF-00103";
 
 const REQUEST_TIMEOUT_MS = 15_000;
+const WEB_MERCATOR_RADIUS = 6_378_137;
 
 /** 한반도 근처 WGS84 만 허용 (오좌표 방지). */
 function isPlausibleKoreaWgs84(lat: number, lng: number): boolean {
@@ -97,6 +98,31 @@ function parseNumberOrNull(v: unknown): number | null {
     if (Number.isFinite(n)) return n;
   }
   return null;
+}
+
+function webMercatorToWgs84(
+  x: number,
+  y: number
+): { latitude: number; longitude: number } | null {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  const longitude = (x / WEB_MERCATOR_RADIUS) * (180 / Math.PI);
+  const latitude =
+    (2 * Math.atan(Math.exp(y / WEB_MERCATOR_RADIUS)) - Math.PI / 2) *
+    (180 / Math.PI);
+
+  return isPlausibleKoreaWgs84(latitude, longitude)
+    ? { latitude, longitude }
+    : null;
+}
+
+function parseGeomWebMercator(
+  v: unknown
+): { latitude: number; longitude: number } | null {
+  if (typeof v !== "string") return null;
+  const nums = v.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  if (nums.length < 2) return null;
+  return webMercatorToWgs84(nums[0], nums[1]);
 }
 
 /**
@@ -193,6 +219,26 @@ export function normalizeEarthquakeOutdoorShelterItem(
     parseNumberOrNull(o.lon) ??
     parseNumberOrNull(o.LNG) ??
     parseNumberOrNull(o.lng);
+
+  if (latitude == null || longitude == null) {
+    const x = parseNumberOrNull(o.XMAP_CRTS) ?? parseNumberOrNull(o.xmapCrts);
+    const y = parseNumberOrNull(o.YMAP_CRTS) ?? parseNumberOrNull(o.ymapCrts);
+    if (x != null && y != null) {
+      const converted = webMercatorToWgs84(x, y);
+      if (converted) {
+        latitude = converted.latitude;
+        longitude = converted.longitude;
+      }
+    }
+  }
+
+  if (latitude == null || longitude == null) {
+    const converted = parseGeomWebMercator(o.GEOM ?? o.geom);
+    if (converted) {
+      latitude = converted.latitude;
+      longitude = converted.longitude;
+    }
+  }
 
   if (
     latitude == null ||
