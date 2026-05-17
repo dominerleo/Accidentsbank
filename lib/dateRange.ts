@@ -16,3 +16,10 @@ export function localDateYmd(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+/** 서울(Asia/Seoul) 달력 기준 오늘 YYYY-MM-DD. */
+export function seoulTodayYmd(): string {
+  return new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Seoul",
+  });
+}
