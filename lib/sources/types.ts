@@ -17,8 +17,10 @@ export interface SourceQuery {
   center?: LatLng;
   /** 반경 (km) */
   radiusKm?: number;
-  /** 행정구역 텍스트 (예: "서울시 강남구") */
+  /** 행정구역·지명 힌트 (지오코딩 쿼리에 합침) */
   region?: string;
+  /** 배치용 CSV 경로 (TaasSource 등, 서버/스크립트 전용) */
+  dataFilePath?: string;
   /** 연도 범위 시작 */
   fromYear?: number;
   /** 연도 범위 끝 */

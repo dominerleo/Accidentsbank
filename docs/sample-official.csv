@@ -1,0 +1,2 @@
+lat,lng,occurred_at,title,category,description,external_id
+37.498,127.028,2025-06-01T12:00:00.000Z,샘플 CSV 교통사고,incident,배치 테스트용,sample-official-1

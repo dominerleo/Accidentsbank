@@ -42,7 +42,7 @@ export default function KakaoMapLoader({ children }: Props) {
           </p>
           <p className="mt-2 text-xs text-red-500">
             카카오 Developers 콘솔에서 <code className="rounded bg-red-100 px-1">JavaScript SDK 도메인</code>에
-            <code className="ml-1 rounded bg-red-100 px-1">http://localhost:3000</code> 가 등록되어 있는지 확인하세요.
+            <code className="ml-1 rounded bg-red-100 px-1">http://localhost:3002</code> 가 등록되어 있는지 확인하세요.
           </p>
         </div>
       </div>

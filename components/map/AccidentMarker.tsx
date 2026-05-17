@@ -1,26 +1,10 @@
 "use client";
 
 import { CustomOverlayMap } from "react-kakao-maps-sdk";
-import {
-  Car,
-  Shield,
-  Flame,
-  AlertTriangle,
-  CloudLightning,
-  Circle,
-  type LucideIcon,
-} from "lucide-react";
-import type { Accident, AccidentCategory } from "@/types";
+import type { Accident } from "@/types";
 import { ACCIDENT_CATEGORIES } from "@/types";
-
-const ICONS: Record<AccidentCategory, LucideIcon> = {
-  traffic: Car,
-  crime: Shield,
-  fire: Flame,
-  fraud: AlertTriangle,
-  disaster: CloudLightning,
-  etc: Circle,
-};
+import { useMapStore } from "@/hooks/useMapStore";
+import { dotDiameterPx } from "@/lib/map/markerScale";
 
 interface Props {
   accident: Accident;
@@ -28,20 +12,33 @@ interface Props {
 }
 
 export default function AccidentMarker({ accident, onClick }: Props) {
-  const Icon = ICONS[accident.category];
+  const mapLevel = useMapStore((s) => s.level);
+  const selectedId = useMapStore((s) => s.selectedAccident?.id);
   const meta = ACCIDENT_CATEGORIES[accident.category];
+  const px = dotDiameterPx(mapLevel);
+  const isSelected = selectedId === accident.id;
 
   return (
     <CustomOverlayMap position={accident.location} yAnchor={1}>
       <button
         type="button"
-        onClick={() => onClick?.(accident)}
-        className="group relative flex h-10 w-10 -translate-y-2 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110"
-        style={{ backgroundColor: meta.color }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.(accident);
+        }}
+        className="rounded-full border-2 border-white shadow-md transition-transform hover:scale-110"
+        style={{
+          backgroundColor: meta.color,
+          width: px,
+          height: px,
+          marginLeft: -px / 2,
+          marginTop: -px,
+          boxShadow: isSelected
+            ? "0 0 0 4px rgba(56, 189, 248, 0.95), 0 2px 8px rgba(0,0,0,0.25)"
+            : "0 2px 6px rgba(0,0,0,0.2)",
+        }}
         title={`${meta.label} · ${accident.title}`}
-      >
-        <Icon className="h-5 w-5 text-white" strokeWidth={2.5} />
-      </button>
+      />
     </CustomOverlayMap>
   );
 }

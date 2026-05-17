@@ -1,0 +1,3 @@
+gu_name,year,value,metric,category,source_url,description
+강남구,2018,142,교통사고건수,incident,https://example.org/stats/traffic2018,샘플 집계 행
+종로구,1995,38,범죄발생건수,crime,,샘플(출처 URL은 실제 데이터로 교체)

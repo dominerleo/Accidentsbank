@@ -1,22 +1,56 @@
-export type AccidentCategory =
-  | "traffic"
-  | "crime"
-  | "fire"
-  | "fraud"
-  | "disaster"
-  | "etc";
+import type { AppLocale } from "./locale";
+
+export type AccidentCategory = "incident" | "crime" | "news" | "etc" | "misc";
 
 export const ACCIDENT_CATEGORIES: Record<
   AccidentCategory,
   { label: string; color: string; icon: string }
 > = {
-  traffic: { label: "교통사고", color: "#ef4444", icon: "Car" },
-  crime: { label: "강력범죄", color: "#7c3aed", icon: "Shield" },
-  fire: { label: "화재", color: "#f97316", icon: "Flame" },
-  fraud: { label: "사기", color: "#eab308", icon: "AlertTriangle" },
-  disaster: { label: "재난/자연재해", color: "#0ea5e9", icon: "CloudLightning" },
-  etc: { label: "기타", color: "#64748b", icon: "Circle" },
+  incident: { label: "사고", color: "#ef4444", icon: "AlertCircle" },
+  crime: { label: "범죄", color: "#7c3aed", icon: "Shield" },
+  news: { label: "뉴스", color: "#3b82f6", icon: "Newspaper" },
+  etc: { label: "이벤트", color: "#64748b", icon: "Circle" },
+  misc: { label: "기타", color: "#94a3b8", icon: "Ellipsis" },
 };
+
+/** 지도·필터 UI 순서 */
+export const ACCIDENT_CATEGORY_ORDER: AccidentCategory[] = [
+  "incident",
+  "crime",
+  "news",
+  "etc",
+  "misc",
+];
+
+const VALID_CATEGORY = new Set<string>(ACCIDENT_CATEGORY_ORDER);
+
+/**
+ * CSV·한글 별칭 정규화.
+ * - event, 이벤트 → etc
+ * - 기타(한글), misc, other → misc (DB 기타)
+ * - 그 외 미지정 값은 etc(이벤트)로 수렴 (레거시 호환)
+ */
+export function normalizeAccidentCategory(raw: string): AccidentCategory {
+  const lower = raw.trim().toLowerCase();
+  if (lower === "event" || lower === "이벤트") return "etc";
+  if (lower === "기타" || lower === "misc" || lower === "other") return "misc";
+  return VALID_CATEGORY.has(lower) ? (lower as AccidentCategory) : "etc";
+}
+
+const CATEGORY_LABEL_EN: Record<AccidentCategory, string> = {
+  incident: "Incident",
+  crime: "Crime",
+  news: "News",
+  etc: "Event",
+  misc: "Other",
+};
+
+export function accidentCategoryLabel(
+  cat: AccidentCategory,
+  locale: AppLocale
+): string {
+  return locale === "en" ? CATEGORY_LABEL_EN[cat] : ACCIDENT_CATEGORIES[cat].label;
+}
 
 /**
  * 출처 타입 - 새 출처는 string 으로 자유롭게 추가 가능 (DB 스키마 변경 불필요).
@@ -36,6 +70,21 @@ export const SOURCE_META: Record<string, { label: string; color: string; ring: s
   wiki: { label: "위키", color: "#a855f7", ring: "ring-purple-300" },
   ai: { label: "AI", color: "#eab308", ring: "ring-yellow-300" },
 };
+
+const SOURCE_LABEL_EN: Record<string, string> = {
+  user: "User",
+  official: "Official",
+  news: "News",
+  wiki: "Wiki",
+  ai: "AI",
+};
+
+export function sourceTypeLabel(raw: string, locale: AppLocale): string {
+  if (locale === "en") {
+    return SOURCE_LABEL_EN[raw] ?? raw;
+  }
+  return SOURCE_META[raw]?.label ?? raw;
+}
 
 export interface LatLng {
   lat: number;
@@ -71,6 +120,8 @@ export interface Accident {
   tags?: string[];
   /** 사진/영상 링크 */
   mediaUrls?: string[];
+  /** 배치 수집 시 출처 고유 ID (DB external_source_id) */
+  externalSourceId?: string | null;
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
@@ -87,6 +138,19 @@ export interface AccidentInput {
   metadata?: Record<string, unknown>;
   tags?: string[];
   mediaUrls?: string[];
+}
+
+/** PATCH /api/accidents/:id 용 부분 업데이트 */
+export interface AccidentPatch {
+  category?: AccidentCategory;
+  title?: string;
+  description?: string | null;
+  occurredAt?: string;
+  location?: LatLng;
+  address?: Partial<AccidentAddress>;
+  newsUrl?: string | null;
+  /** admin/moderator 만 API 에서 허용 */
+  sourceType?: string;
 }
 
 export interface UserProfile {

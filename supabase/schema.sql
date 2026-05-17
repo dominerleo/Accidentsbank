@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS public.accidents (
   id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   -- 분류 정보
-  category      text NOT NULL CHECK (category IN ('traffic', 'crime', 'fire', 'fraud', 'disaster', 'etc')),
+  category      text NOT NULL CHECK (category IN ('incident', 'crime', 'news', 'etc', 'misc')),
   title         text NOT NULL,
   description   text,
 
@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.accidents (
   tags          text[] DEFAULT '{}',
   media_urls    text[] DEFAULT '{}',
 
+  external_source_id text,
+
   -- 작성자
   created_by    uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
@@ -78,6 +80,28 @@ CREATE INDEX IF NOT EXISTS accidents_source_type_idx ON public.accidents (source
 CREATE INDEX IF NOT EXISTS accidents_category_idx ON public.accidents (category);
 CREATE INDEX IF NOT EXISTS accidents_created_by_idx ON public.accidents (created_by);
 CREATE INDEX IF NOT EXISTS accidents_tags_idx ON public.accidents USING GIN (tags);
+
+CREATE UNIQUE INDEX IF NOT EXISTS accidents_source_external_uidx
+  ON public.accidents (source_type, external_source_id)
+  WHERE external_source_id IS NOT NULL AND length(trim(external_source_id)) > 0;
+
+-- 배치 수집 스테이징
+CREATE TABLE IF NOT EXISTS public.import_raw (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  source_type text NOT NULL,
+  external_source_id text,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'processed', 'failed')),
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS import_raw_status_created_idx
+  ON public.import_raw (status, created_at DESC);
+
+ALTER TABLE public.import_raw ENABLE ROW LEVEL SECURITY;
 
 -- 4. updated_at 자동 갱신 트리거 ------------------------------------------
 -- 모든 함수는 search_path 를 '' 로 고정하여 search_path 하이재킹 방지.
@@ -245,6 +269,7 @@ RETURNS SETOF public.accidents AS $$
   AND (category_filter IS NULL OR category = ANY(category_filter))
   AND (from_date IS NULL OR occurred_at >= from_date)
   AND (to_date IS NULL OR occurred_at <= to_date)
+  AND title NOT ILIKE '%테스트%'
   ORDER BY occurred_at DESC
   LIMIT result_limit;
 $$ LANGUAGE sql STABLE

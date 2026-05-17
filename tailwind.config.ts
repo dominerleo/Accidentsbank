@@ -14,12 +14,11 @@ const config: Config = {
           dark: "#0369a1",
         },
         accident: {
-          traffic: "#ef4444",
+          incident: "#ef4444",
           crime: "#7c3aed",
-          fire: "#f97316",
-          fraud: "#eab308",
-          disaster: "#0ea5e9",
+          news: "#3b82f6",
           etc: "#64748b",
+          misc: "#94a3b8",
         },
       },
       fontFamily: {

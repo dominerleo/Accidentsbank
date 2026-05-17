@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Map, MapMarker } from "react-kakao-maps-sdk";
+import { useCallback, useEffect } from "react";
+import { Map } from "react-kakao-maps-sdk";
 import KakaoMapLoader from "./KakaoMapLoader";
+import AccidentMarker from "./AccidentMarker";
 import { useMapStore } from "@/hooks/useMapStore";
-import { useReverseGeocode } from "@/hooks/useReverseGeocode";
-import { ACCIDENT_CATEGORIES } from "@/types";
 
 export default function MapView() {
   const center = useMapStore((s) => s.center);
@@ -15,9 +14,14 @@ export default function MapView() {
   const openForm = useMapStore((s) => s.openForm);
   const selectAccident = useMapStore((s) => s.selectAccident);
   const loadAccidents = useMapStore((s) => s.loadAccidents);
-  const { resolve } = useReverseGeocode();
+  const setLevel = useMapStore((s) => s.setLevel);
 
-  // 첫 마운트 시 사고 목록 로드.
+  /** Map 내부 effect 가 [callback] 을 의존하므로 참조 고정 — 매 렌더마다 바뀌면 onCreate 가 반복 호출되어 무한 루프 */
+  const handleZoomChanged = useCallback(
+    (map: kakao.maps.Map) => setLevel(map.getLevel()),
+    [setLevel]
+  );
+
   useEffect(() => {
     loadAccidents();
   }, [loadAccidents]);
@@ -28,21 +32,21 @@ export default function MapView() {
         <Map
           center={center}
           level={level}
+          isPanto
           style={{ width: "100%", height: "100%" }}
+          onZoomChanged={handleZoomChanged}
           onClick={async (_map, mouseEvent) => {
             const latlng = mouseEvent.latLng;
             const point = { lat: latlng.getLat(), lng: latlng.getLng() };
             selectPoint(point);
             openForm();
-            await resolve(point);
           }}
         >
           {accidents.map((a) => (
-            <MapMarker
+            <AccidentMarker
               key={a.id}
-              position={a.location}
+              accident={a}
               onClick={() => selectAccident(a)}
-              title={`[${ACCIDENT_CATEGORIES[a.category].label}] ${a.title}`}
             />
           ))}
         </Map>

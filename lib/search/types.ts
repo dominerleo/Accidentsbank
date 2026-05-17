@@ -22,6 +22,8 @@ export interface SearchResult {
   publishedAt?: string;
   source?: string;
   thumbnailUrl?: string;
+  /** 배치 upsert 용 고유 키 (없으면 url 사용) */
+  externalId?: string;
 }
 
 export interface SearchProvider {
