@@ -16,7 +16,8 @@ export type NormalizedSexOffenderAddressItem = {
   mainLotNo: string | null;
   subLotNo: string | null;
   displayAddress: string;
-  rawAddressText: string;
+  /** 카카오 주소검색 API에 전달하기 위한 정규화 입력 주소 */
+  addressForGeocoding: string;
 };
 
 function pickRaw(
@@ -50,7 +51,7 @@ function pickStr(
   return s.length ? s : null;
 }
 
-/** 공공데이터 JSON item → 주소 중심 정규화 (원본 객체는 반환하지 않음) */
+/** 공공데이터 JSON item → 주소 중심 정규화. 개인정보 필드는 절대 포함하지 않는다. */
 export function normalizeSexOffenderAddressItem(
   raw: Record<string, unknown>,
   pageNo: number,
@@ -90,24 +91,34 @@ export function normalizeSexOffenderAddressItem(
     "eupmyonNm",
   ]);
 
-  const ri = pickStr(raw, ["법정리명", "liNm", "legaldongLiNm", "LI_NM"]);
+  const ri = pickStr(raw, [
+    "법정리명",
+    "liNm",
+    "legaldongLiNm",
+    "LI_NM",
+    "stliNm",
+  ]);
 
   const mainLotNo = pickStr(raw, [
     "본번",
     "mnnm",
+    "mno",
     "mainLotNo",
     "bonbun",
     "MNNM",
     "mainLot",
+    "bmno",
   ]);
 
   const subLotNo = pickStr(raw, [
     "부번",
     "slno",
+    "sno",
     "subLotNo",
     "bubun",
     "SLNO",
     "subLot",
+    "bsno",
   ]);
 
   const stdg = pickStr(raw, [
@@ -124,30 +135,31 @@ export function normalizeSexOffenderAddressItem(
     mainLotNo ?? "",
     subLotNo ?? "",
     createdDate ?? "",
-    String(pageNo),
-    String(index),
   ].join("|");
 
+  // 출처 측 안정 ID(전체 맥락이 동일하면 동일 ID). pageNo/index 는 의도적으로 제외.
   const hash = createHash("sha256").update(basis, "utf8").digest("base64url");
   const id = `public-safety-address-${hash.slice(0, 24)}`;
 
-  const displayParts = [sido, sigungu, eupmyeondong].filter(
+  // 외부에 보여줄 표시 주소: 시·도 + 시·군·구 + 읍·면·동
+  const displayParts = [sido, sigungu, eupmyeondong, ri].filter(
     (x): x is string => Boolean(x)
   );
   const displayAddress =
     displayParts.join(" ").replace(/\s+/g, " ").trim() || "(주소 요약 없음)";
 
-  const rawBits = [
-    sido,
-    sigungu,
-    eupmyeondong,
-    ri,
-    mainLotNo != null ? `본번 ${mainLotNo}` : null,
-    subLotNo != null ? `부번 ${subLotNo}` : null,
-    stdg != null ? `법정동코드 ${stdg}` : null,
-  ].filter((x): x is string => Boolean(x));
-
-  const rawAddressText = rawBits.join(" · ").replace(/\s+/g, " ").trim();
+  // 지오코딩 입력은 본번/부번까지 활용 (있을 때) → 좌표 정확도 ↑
+  const lot =
+    mainLotNo != null
+      ? subLotNo != null
+        ? `${mainLotNo}-${subLotNo}`
+        : mainLotNo
+      : null;
+  const geocodeParts = [sido, sigungu, eupmyeondong, ri, lot].filter(
+    (x): x is string => Boolean(x)
+  );
+  const addressForGeocoding =
+    geocodeParts.join(" ").replace(/\s+/g, " ").trim() || displayAddress;
 
   return {
     id,
@@ -161,7 +173,7 @@ export function normalizeSexOffenderAddressItem(
     mainLotNo,
     subLotNo,
     displayAddress,
-    rawAddressText: rawAddressText || displayAddress,
+    addressForGeocoding,
   };
 }
 
@@ -181,7 +193,6 @@ export type Gov24SaisFetchResult = {
   headerResultMsg: string;
 };
 
-/** 원본 응답 파싱 · items 추출 (민감 필드 필터는 normalize 단계에서 수행) */
 export function parseGov24SaisResponse(json: unknown): Gov24SaisFetchResult {
   const root = json as Record<string, unknown>;
   const response = root.response as Record<string, unknown> | undefined;
@@ -233,6 +244,9 @@ export async function fetchGov24SexOffenderAddressesRaw(params: {
   url.searchParams.set("serviceKey", params.serviceKey);
   url.searchParams.set("pageNo", String(params.pageNo));
   url.searchParams.set("numOfRows", String(params.numOfRows));
+  // 정부24 OpenAPI V2 는 응답 형식 결정에 `type` 파라미터를 사용한다.
+  // (`resultType` 만 보내면 XML + INVALID_REQUEST_PARAMETER_ERROR 가 돌아온다.)
+  url.searchParams.set("type", "json");
   url.searchParams.set("resultType", "json");
 
   const res = await fetch(url.toString(), {

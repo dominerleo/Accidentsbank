@@ -30,7 +30,7 @@ export default function AccidentCategoryFilter() {
   };
 
   return (
-    <div className="border-b border-slate-200 px-5 py-3">
+    <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
       <div className="mb-2 text-xs font-semibold text-slate-700">
         {t.categoryFilterTitle}
       </div>

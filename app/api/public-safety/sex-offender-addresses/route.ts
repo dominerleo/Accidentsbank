@@ -4,6 +4,10 @@ import {
   normalizeSexOffenderAddressItem,
   parseGov24SaisResponse,
 } from "@/lib/public-safety/gov24SexOffenderAddress";
+import {
+  isPotentialIdentifierField,
+  maskPotentialIdentifierFields,
+} from "@/lib/privacy/maskName";
 
 const MAX_NUM_OF_ROWS = 100;
 
@@ -19,9 +23,23 @@ function parsePositiveInt(
   return i;
 }
 
+function buildMaskedIdentifierDebug(raw: Record<string, unknown>) {
+  const masked = maskPotentialIdentifierFields(raw);
+  const entries = Object.entries(masked).filter(([key]) =>
+    isPotentialIdentifierField(key)
+  );
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
 /**
  * GET /api/public-safety/sex-offender-addresses?pageNo=1&numOfRows=20&debug=1
- * 공공데이터포털 성범죄자 공개·고지 지번 주소 정보 — 서버에서만 GOV24_API_KEY 사용, 정규화된 주소만 반환.
+ *
+ * 공공데이터포털 성범죄자 공개·고지 지번 주소 정보.
+ * 서버에서만 GOV24_API_KEY 를 사용하고 정규화된 주소 정보만 반환한다.
+ *
+ * 개인정보 보호:
+ * - 이름·사진·상세 범죄내용·원본 raw JSON 은 반환하지 않는다.
+ * - debug=1 에서도 원본 이름값은 출력하지 않고, 이름 후보 필드가 있으면 마스킹 값만 반환한다.
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -85,11 +103,18 @@ export async function GET(req: Request) {
     }
 
     const firstRaw = parsed.items[0];
+    const maskedIdentifierFields =
+      wantsDebug && process.env.NODE_ENV !== "production" && firstRaw
+        ? buildMaskedIdentifierDebug(firstRaw)
+        : undefined;
     const debugPayload =
       wantsDebug && process.env.NODE_ENV !== "production" && firstRaw
         ? {
             debug: {
               firstItemKeys: Object.keys(firstRaw).sort(),
+              ...(maskedIdentifierFields
+                ? { maskedIdentifierFields }
+                : {}),
             },
           }
         : {};

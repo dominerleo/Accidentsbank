@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { Landmark, Plus } from "lucide-react";
+import { useEffect } from "react";
+import { Landmark, Menu, Plus, X } from "lucide-react";
 import { useLocaleStore } from "@/hooks/useLocaleStore";
 import { useMapStore } from "@/hooks/useMapStore";
+import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { ui } from "@/lib/i18n/ui";
 import AccidentForm from "./AccidentForm";
 import AccidentList from "./AccidentList";
@@ -11,84 +12,133 @@ import AuthButton from "./AuthButton";
 import AccidentDateFilter from "./AccidentDateFilter";
 import AccidentCategoryFilter from "./AccidentCategoryFilter";
 import DataSourceStatus from "./DataSourceStatus";
-import HomeCommunityPreview from "./HomeCommunityPreview";
 import PlaceSearchBar from "./PlaceSearchBar";
+import PublicSafetyLayerToggle from "./PublicSafetyLayerToggle";
+import TsunamiEvacuationLayerToggle from "./TsunamiEvacuationLayerToggle";
 
+/**
+ * 사이드바 — 데스크탑(`md:` 이상)에서는 항상 노출.
+ * 모바일에서는 기본 숨김 + 우측 상단 햄버거 버튼으로 슬라이드 토글.
+ */
 export default function Sidebar() {
   const { isFormOpen, closeForm } = useMapStore();
   const locale = useLocaleStore((s) => s.locale);
   const t = ui(locale);
+  const open = useSidebarStore((s) => s.open);
+  const setOpen = useSidebarStore((s) => s.setOpen);
+
+  // 모바일에서 폼이 열리면 사이드바도 함께 열어줌 (작성 UI 가 보여야 하므로).
+  useEffect(() => {
+    if (isFormOpen) setOpen(true);
+  }, [isFormOpen, setOpen]);
+
+  // ESC 로 모바일 사이드바 닫기.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, setOpen]);
 
   return (
-    <aside
-      className="absolute right-0 top-0 z-10 flex h-full max-h-full min-h-0 w-[var(--sidebar-width)] max-w-full flex-col border-l border-slate-200/60 bg-white/95 shadow-2xl backdrop-blur-md"
-      aria-label={locale === "en" ? "Sidebar" : "사이드바"}
-    >
-      <header className="shrink-0 border-b border-slate-200 px-5 py-3 sm:py-4">
-        <div className="flex items-start gap-2">
-          <Landmark className="h-6 w-6 shrink-0 text-brand" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-tight text-slate-900">
+    <>
+      {/* 모바일 전용: 사이드바 닫혀있을 때만 보이는 햄버거 버튼 */}
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed right-3 top-3 z-30 flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white md:hidden"
+          aria-label={locale === "en" ? "Open menu" : "메뉴 열기"}
+          aria-expanded={false}
+        >
+          <Menu className="h-4 w-4" aria-hidden />
+          <span>{locale === "en" ? "Menu" : "메뉴"}</span>
+        </button>
+      )}
+
+      {/* 모바일 백드롭 */}
+      {open && (
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          aria-label={locale === "en" ? "Close menu" : "메뉴 닫기"}
+        />
+      )}
+
+      <aside
+        className={[
+          "fixed md:absolute right-0 top-0 z-40",
+          "flex h-full max-w-full flex-col",
+          "w-full sm:w-[360px] md:w-[var(--sidebar-width)]",
+          "border-l border-slate-200/60 bg-white/95 shadow-2xl backdrop-blur-md",
+          "transform transition-transform duration-200 ease-out",
+          open
+            ? "translate-x-0"
+            : "translate-x-full md:translate-x-0",
+        ].join(" ")}
+        aria-label={locale === "en" ? "Sidebar" : "사이드바"}
+        aria-hidden={!open && typeof window !== "undefined" ? undefined : false}
+      >
+        <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
+          <Landmark className="h-6 w-6 shrink-0 text-brand" aria-hidden />
+          <div className="flex min-w-0 flex-col">
+            <h1 className="truncate text-base font-bold leading-tight text-slate-900 sm:text-lg">
               {t.sidebarTitle}
             </h1>
-            <span className="text-xs text-slate-500">{t.sidebarSubtitle}</span>
+            <span className="truncate text-[11px] text-slate-500 sm:text-xs">
+              {t.sidebarSubtitle}
+            </span>
           </div>
-          <div className="shrink-0 pt-0.5">
+          <div className="ml-auto flex min-w-0 items-center gap-1.5">
             <AuthButton />
+            {/* 모바일 전용 닫기 버튼 */}
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-100 md:hidden"
+              aria-label={locale === "en" ? "Close menu" : "메뉴 닫기"}
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
           </div>
-        </div>
-        <nav
-          className="mt-2 flex w-full flex-nowrap items-center justify-center gap-1.5"
-          aria-label={locale === "en" ? "Main navigation" : "주 메뉴"}
-        >
-          <Link
-            href="/"
-            className="shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-brand/50 hover:text-brand"
-          >
-            {t.navMap}
-          </Link>
-          <Link
-            href="/community"
-            className="shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-brand/50 hover:text-brand"
-          >
-            {t.navCommunity}
-          </Link>
-        </nav>
-      </header>
+        </header>
 
-      {/* 헤더·푸터 사이 전체를 한 영역에서 세로 스크롤 (모바일에서 미리보기 하단까지 도달 가능) */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain scrollbar-hide touch-pan-y">
         <PlaceSearchBar />
 
         <AccidentDateFilter />
 
         <AccidentCategoryFilter />
 
-        <div className="shrink-0 border-b border-slate-100 bg-slate-50/80 px-5 py-2">
+        <PublicSafetyLayerToggle />
+
+        <TsunamiEvacuationLayerToggle />
+
+        <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2 sm:px-5">
           <DataSourceStatus />
         </div>
 
-        {!isFormOpen ? <HomeCommunityPreview /> : null}
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          {isFormOpen ? (
+            <AccidentForm onClose={closeForm} />
+          ) : (
+            <AccidentList />
+          )}
+        </div>
 
-        {isFormOpen ? (
-          <AccidentForm onClose={closeForm} />
-        ) : (
-          <AccidentList />
-        )}
-
-        <div className="shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-hidden />
-      </div>
-
-      <footer className="shrink-0 border-t border-slate-200 px-5 py-3">
-        <button
-          type="button"
-          onClick={() => useMapStore.getState().openForm()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
-        >
-          <Plus className="h-4 w-4" />
-          {t.recordCta}
-        </button>
-      </footer>
-    </aside>
+        <footer className="border-t border-slate-200 px-4 py-3 sm:px-5">
+          <button
+            type="button"
+            onClick={() => useMapStore.getState().openForm()}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {t.recordCta}
+          </button>
+        </footer>
+      </aside>
+    </>
   );
 }

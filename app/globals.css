@@ -10,6 +10,13 @@
   --sidebar-width: 380px;
 }
 
+@supports (height: 100dvh) {
+  html,
+  body {
+    height: 100dvh;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0f172a;

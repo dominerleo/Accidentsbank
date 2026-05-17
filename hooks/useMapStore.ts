@@ -36,6 +36,8 @@ interface MapState {
   error: string | null;
 
   setCenter: (center: LatLng) => void;
+  /** 지도 컴포넌트(카카오/Leaflet)의 사용자 드래그 결과를 store 에 반영. epsilon 비교로 무한 루프 방지. */
+  syncCenterFromMap: (center: LatLng) => void;
   setLevel: (level: number) => void;
   selectPoint: (point: LatLng | null) => void;
   selectAccident: (accident: Accident | null) => void;
@@ -87,6 +89,16 @@ export const useMapStore = create<MapState>((set, get) => ({
   error: null,
 
   setCenter: (center) => set({ center }),
+  syncCenterFromMap: (center) => {
+    const cur = get().center;
+    if (
+      Math.abs(cur.lat - center.lat) < 1e-7 &&
+      Math.abs(cur.lng - center.lng) < 1e-7
+    ) {
+      return;
+    }
+    set({ center });
+  },
   setLevel: (level) => set({ level }),
   selectPoint: (selectedPoint) => set({ selectedPoint }),
   selectAccident: (selectedAccident) => set({ selectedAccident }),

@@ -45,11 +45,31 @@ const CATEGORY_LABEL_EN: Record<AccidentCategory, string> = {
   misc: "Other",
 };
 
+/** 알 수 없는 카테고리가 들어와도 흰 화면이 되지 않도록 사용하는 fallback 메타. */
+export const ACCIDENT_CATEGORY_FALLBACK = {
+  label: "기타",
+  color: "#94a3b8",
+  icon: "Circle",
+} as const;
+
+export function getAccidentCategoryMeta(cat: string | null | undefined) {
+  if (cat && cat in ACCIDENT_CATEGORIES) {
+    return ACCIDENT_CATEGORIES[cat as AccidentCategory];
+  }
+  return ACCIDENT_CATEGORY_FALLBACK;
+}
+
 export function accidentCategoryLabel(
-  cat: AccidentCategory,
+  cat: AccidentCategory | string | null | undefined,
   locale: AppLocale
 ): string {
-  return locale === "en" ? CATEGORY_LABEL_EN[cat] : ACCIDENT_CATEGORIES[cat].label;
+  if (locale === "en") {
+    if (cat && cat in CATEGORY_LABEL_EN) {
+      return CATEGORY_LABEL_EN[cat as AccidentCategory];
+    }
+    return "Other";
+  }
+  return getAccidentCategoryMeta(cat).label;
 }
 
 /**

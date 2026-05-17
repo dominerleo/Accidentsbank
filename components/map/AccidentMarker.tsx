@@ -2,7 +2,7 @@
 
 import { CustomOverlayMap } from "react-kakao-maps-sdk";
 import type { Accident } from "@/types";
-import { ACCIDENT_CATEGORIES } from "@/types";
+import { getAccidentCategoryMeta } from "@/types";
 import { useMapStore } from "@/hooks/useMapStore";
 import { dotDiameterPx } from "@/lib/map/markerScale";
 
@@ -14,12 +14,18 @@ interface Props {
 export default function AccidentMarker({ accident, onClick }: Props) {
   const mapLevel = useMapStore((s) => s.level);
   const selectedId = useMapStore((s) => s.selectedAccident?.id);
-  const meta = ACCIDENT_CATEGORIES[accident.category];
+  const meta = getAccidentCategoryMeta(accident?.category);
   const px = dotDiameterPx(mapLevel);
-  const isSelected = selectedId === accident.id;
+  const isSelected = selectedId === accident?.id;
+
+  const lat = Number(accident?.location?.lat);
+  const lng = Number(accident?.location?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
 
   return (
-    <CustomOverlayMap position={accident.location} yAnchor={1}>
+    <CustomOverlayMap position={{ lat, lng }} yAnchor={1}>
       <button
         type="button"
         onClick={(e) => {
@@ -37,7 +43,7 @@ export default function AccidentMarker({ accident, onClick }: Props) {
             ? "0 0 0 4px rgba(56, 189, 248, 0.95), 0 2px 8px rgba(0,0,0,0.25)"
             : "0 2px 6px rgba(0,0,0,0.2)",
         }}
-        title={`${meta.label} · ${accident.title}`}
+        title={`${meta.label ?? "?"} · ${accident?.title ?? ""}`}
       />
     </CustomOverlayMap>
   );

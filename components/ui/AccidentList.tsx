@@ -3,7 +3,11 @@
 import { useMapStore } from "@/hooks/useMapStore";
 import { useLocaleStore } from "@/hooks/useLocaleStore";
 import type { AccidentCategory } from "@/types";
-import { ACCIDENT_CATEGORIES, accidentCategoryLabel } from "@/types";
+import {
+  ACCIDENT_CATEGORIES,
+  accidentCategoryLabel,
+  getAccidentCategoryMeta,
+} from "@/types";
 import { formatDate } from "@/lib/utils";
 import type { AppLocale } from "@/types/locale";
 import { ui, type UiStrings } from "@/lib/i18n/ui";
@@ -75,14 +79,15 @@ export default function AccidentList() {
   return (
     <ul className="divide-y divide-slate-100">
       {accidents.map((a) => {
-        const meta = ACCIDENT_CATEGORIES[a.category];
+        if (!a) return null;
+        const meta = getAccidentCategoryMeta(a.category);
         const label = accidentCategoryLabel(a.category, locale);
         return (
           <li key={a.id}>
             <button
               type="button"
               onClick={() => focusAccidentOnMap(a)}
-              className="flex w-full flex-col gap-1 px-5 py-3 text-left transition-colors hover:bg-slate-50"
+              className="flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:px-5"
             >
               <div className="flex items-center gap-2">
                 <span
@@ -97,7 +102,7 @@ export default function AccidentList() {
                 {a.title}
               </p>
               <p className="text-xs text-slate-500 line-clamp-1">
-                {a.address.roadAddress ?? a.address.jibunAddress ?? "-"}
+                {a.address?.roadAddress ?? a.address?.jibunAddress ?? "-"}
               </p>
             </button>
           </li>

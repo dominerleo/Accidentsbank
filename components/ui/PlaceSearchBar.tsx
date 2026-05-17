@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { MapPin, Search, X } from "lucide-react";
 import { useLocaleStore } from "@/hooks/useLocaleStore";
 import { useMapStore } from "@/hooks/useMapStore";
+import { useSidebarStore } from "@/hooks/useSidebarStore";
 import { ui } from "@/lib/i18n/ui";
 import type { PlaceSearchResultItem } from "@/types";
 
@@ -13,6 +14,16 @@ export default function PlaceSearchBar() {
   const isKorea = useMapStore((s) => s.isKorea);
   const focusMapLocation = useMapStore((s) => s.focusMapLocation);
   const selectAccident = useMapStore((s) => s.selectAccident);
+  const closeSidebar = useSidebarStore((s) => s.setOpen);
+
+  // 모바일(< md)에서는 검색 후 지도가 보여야 하므로 사이드바를 닫는다.
+  // 데스크탑은 항상 보이므로 setOpen(false) 호출해도 영향 없음.
+  const closeSidebarOnMobile = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      closeSidebar(false);
+    }
+  }, [closeSidebar]);
 
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
@@ -79,6 +90,7 @@ export default function PlaceSearchBar() {
           setPickerOpen(false);
           setCandidates([]);
           setHint(t.placeSearchMoved(p.name));
+          closeSidebarOnMobile();
           return;
         }
 
@@ -119,6 +131,7 @@ export default function PlaceSearchBar() {
         setPickerOpen(false);
         setCandidates([]);
         setHint(t.placeSearchMoved(p.name));
+        closeSidebarOnMobile();
         return;
       }
 
@@ -139,6 +152,7 @@ export default function PlaceSearchBar() {
     focusMapLocation,
     selectAccident,
     t,
+    closeSidebarOnMobile,
   ]);
 
   const pickPlace = (p: PlaceSearchResultItem) => {
@@ -146,6 +160,7 @@ export default function PlaceSearchBar() {
     setPickerOpen(false);
     setCandidates([]);
     setHint(t.placeSearchMoved(p.name));
+    closeSidebarOnMobile();
   };
 
   const addressLines = (p: PlaceSearchResultItem) => {
@@ -158,7 +173,7 @@ export default function PlaceSearchBar() {
 
   return (
     <>
-      <div className="border-b border-slate-200 px-5 py-3">
+      <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
         <form
           className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
           onSubmit={(e) => {
