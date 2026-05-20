@@ -26,6 +26,8 @@ export default function Sidebar() {
   const t = ui(locale);
   const open = useSidebarStore((s) => s.open);
   const setOpen = useSidebarStore((s) => s.setOpen);
+  const desktopCollapsed = useSidebarStore((s) => s.desktopCollapsed);
+  const setDesktopCollapsed = useSidebarStore((s) => s.setDesktopCollapsed);
 
   // 모바일에서 폼이 열리면 사이드바도 함께 열어줌 (작성 UI 가 보여야 하므로).
   useEffect(() => {
@@ -44,12 +46,18 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* 모바일 전용: 사이드바 닫혀있을 때만 보이는 햄버거 버튼 */}
-      {!open && (
+      {/* 사이드바 닫혀있을 때만 보이는 열기 버튼 */}
+      {(!open || desktopCollapsed) && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="fixed right-3 top-3 z-30 flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white md:hidden"
+          onClick={() => {
+            setOpen(true);
+            setDesktopCollapsed(false);
+          }}
+          className={[
+            "fixed right-3 top-3 z-30 items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white",
+            desktopCollapsed ? "flex" : "flex md:hidden",
+          ].join(" ")}
           aria-label={locale === "en" ? "Open menu" : "메뉴 열기"}
           aria-expanded={false}
         >
@@ -75,12 +83,14 @@ export default function Sidebar() {
           "w-full sm:w-[360px] md:w-[var(--sidebar-width)]",
           "border-l border-slate-200/60 bg-white/95 shadow-2xl backdrop-blur-md",
           "transform transition-transform duration-200 ease-out",
-          open
-            ? "translate-x-0"
-            : "translate-x-full md:translate-x-0",
+          desktopCollapsed
+            ? "translate-x-full"
+            : open
+              ? "translate-x-0"
+              : "translate-x-full md:translate-x-0",
         ].join(" ")}
         aria-label={locale === "en" ? "Sidebar" : "사이드바"}
-        aria-hidden={!open && typeof window !== "undefined" ? undefined : false}
+        aria-hidden={desktopCollapsed ? true : undefined}
       >
         <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
           <Landmark className="h-6 w-6 shrink-0 text-brand" aria-hidden />
@@ -94,11 +104,17 @@ export default function Sidebar() {
           </div>
           <div className="ml-auto flex min-w-0 items-center gap-1.5">
             <AuthButton />
-            {/* 모바일 전용 닫기 버튼 */}
+            {/* 닫기 버튼 */}
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-100 md:hidden"
+              onClick={() => {
+                if (window.matchMedia("(min-width: 768px)").matches) {
+                  setDesktopCollapsed(true);
+                } else {
+                  setOpen(false);
+                }
+              }}
+              className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-100"
               aria-label={locale === "en" ? "Close menu" : "메뉴 닫기"}
             >
               <X className="h-4 w-4" aria-hidden />

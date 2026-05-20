@@ -11,7 +11,7 @@
 - 운영 도메인: `https://accidentsbank.com`
 - Vercel 프로젝트: `accidentsbank` (Production branch: `main`)
 - Supabase 프로젝트 ref: `jfhkwnscplznhzloddko`
-- 현재 개발 브랜치: `release/client-error-fixes`. 운영 반영은 GitHub PR로 `main`에 머지하면 Vercel이 자동 배포합니다.
+- 기준 브랜치: `main`. 혼자 작업하는 운영 방식이므로 로컬 검증 후 `main`에 커밋하고 GitHub에 push하면 Vercel이 자동 배포합니다.
 - 주요 앱: 사고 지도, 사고 등록/수정/삭제, 카테고리/날짜 필터, 커뮤니티 게시판 MVP, 뉴스/공공 CSV 배치 적재, 공공안전 주소 레이어, 재난 대피시설 레이어
 - 기본 개발 서버: `http://localhost:3002`
 - 비밀값 원칙: `.env.local`, Vercel Secrets, GitHub Actions Secrets, MCP access token은 절대 커밋하지 않습니다.
@@ -313,10 +313,13 @@ Supabase Auth를 쓰는 경우 Vercel 도메인을 Supabase Auth Redirect URL에
 
 운영 배포 흐름:
 
-1. 작업 브랜치에서 커밋합니다. 최근 작업 브랜치는 `release/client-error-fixes`입니다.
-2. GitHub PR을 `main` 대상으로 만듭니다.
-3. PR을 머지하면 Vercel이 `main`을 자동 배포합니다.
-4. 운영 API 또는 화면에서 반영을 확인합니다.
+1. 로컬에서 변경 후 `npm run type-check`, `npm run build`로 검증합니다.
+2. `main` 브랜치에 커밋합니다.
+3. `git push origin main`을 실행합니다.
+4. Vercel이 GitHub `main` 브랜치를 감지해 자동 배포합니다.
+5. 운영 API 또는 화면에서 반영을 확인합니다.
+
+브랜치를 나눠 작업해야 할 큰 변경이 아니라면 `main` 하나로 관리합니다. 임시 작업 브랜치를 만들었더라도 배포 전 `main`에 합치고 정리합니다.
 
 재난 대피시설 검증 URL:
 
@@ -385,6 +388,7 @@ CODEX에 처음 전달할 프롬프트 예시:
 - [x] Supabase 스키마, RLS, 트리거 적용
 - [x] 커뮤니티 게시판 MVP
 - [x] 공공 CSV/뉴스 배치 적재 기반
+- [ ] 지도 베이스 MapTiler 전환 검토 및 단계적 적용
 - [ ] AI 검색을 통한 과거 사고 자동 마이닝
 - [ ] 관리자 검수/승인 화면
 - [ ] 글로벌 모드 고도화

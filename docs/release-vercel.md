@@ -7,14 +7,16 @@
 릴리스 기준 소스 경로:
 
 ```bash
-cd "/Users/leopdsmac/.cursor/worktrees/_____/alm"
+cd "/Users/leopdsmac/Documents/Personal/사고관리앱"
 ```
 
-로컬 dev 서버는 반드시 위 경로에서 실행합니다.
+로컬 dev 서버는 위 경로에서 실행합니다.
 
 ```bash
 npm run dev
 ```
+
+기준 브랜치는 `main`입니다. 혼자 작업하는 운영 방식이므로 로컬 검증 후 `main`에 커밋하고 GitHub에 push하면 Vercel이 자동 배포합니다.
 
 ## 1. 로컬 검증
 
@@ -74,9 +76,16 @@ from public.public_safety_address_cache;
 
 ## 3. Vercel 프로젝트 설정
 
-권장 방식:
+현재 운영 방식:
 
-1. GitHub에 현재 브랜치/작업 내용을 push
+1. GitHub 저장소 `dominerleo/Accidentsbank`의 `main` 브랜치가 Vercel Production Branch입니다.
+2. 로컬 `main`에서 작업을 커밋합니다.
+3. `git push origin main`을 실행합니다.
+4. Vercel이 자동으로 production 배포를 시작합니다.
+
+프로젝트를 새로 연결해야 할 때의 설정:
+
+1. GitHub에 현재 `main` 내용을 push
 2. Vercel Dashboard 접속
 3. Add New Project
 4. GitHub repository 선택
